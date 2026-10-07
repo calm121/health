@@ -193,4 +193,214 @@ function evCard(ev){
     +'<div class="date">'+esc(ev.date)+'</div>'
     +'<div class="hosp">'+esc(ev.hosp||'')+(ev.dept?' · '+esc(ev.dept):'')+'</div>'
     +'<h3>'+esc((ev.reasons||[]).join('、')||'（未填原因）')+'</h3>'
-    +(ev.diag?'<span class="tag g">'+esc(ev.diag)+'</span
+    +(ev.diag?'<span class="tag g">'+esc(ev.diag)+'</span>':'')
+    +(ev.herb?'<span class="tag" style="background:#f3e8ff;color:#7c3aed">中药</span>':'')
+    +(ev.exam?'<div class="row"><b>检查：</b>'+esc(ev.exam).replace(/\n/g,'<br>')+'</div>':'')
+    +(ev.med?'<div class="row"><b>用药：</b>'+esc(ev.med).replace(/\n/g,'<br>')+'</div>':'')
+    +(ev.feel?'<div class="row"><b>感受：</b>'+esc(ev.feel).replace(/\n/g,'<br>')+'</div>':'')
+    +'</div>';
+}
+
+function rPer(m){
+  let h='<div class="seg" style="margin-top:12px">'
+    +'<button class="on" onclick="tabPer(0)">日历</button>'
+    +'<button onclick="tabPer(1)">时间轴</button>'
+    +'<button onclick="tabPer(2)">列表</button></div><div id="perBody"></div>';
+  m.innerHTML=h;
+  if(calY==null){const d=new Date();calY=d.getFullYear();calM=d.getMonth();}
+  tabPer(0);
+}
+function tabPer(i){
+  document.querySelectorAll('.seg button').forEach((b,j)=>b.classList.toggle('on',i===j));
+  const b=$('perBody');
+  if(i===0) b.innerHTML=calHtml();
+  if(i===1) b.innerHTML=tlHtml();
+  if(i===2) b.innerHTML=listHtml();
+}
+function calHtml(){
+  const first=new Date(calY,calM,1).getDay();
+  const daysIn=new Date(calY,calM+1,0).getDate();
+  const pmap={};
+  db.periods.forEach(p=>{
+    let s=new Date(p.start), e=new Date(p.end||p.start);
+    for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1)){
+      if(d.getFullYear()===calY&&d.getMonth()===calM){
+        pmap[d.getDate()]='p';
+      }
+    }
+  });
+  let h='<div class="monthbar"><button onclick="moveM(-1)">‹</button><span>'
+    +calY+' 年 '+(calM+1)+' 月</span><button onclick="moveM(1)">›</button></div>';
+  h+='<div class="cal">'+['日','一','二','三','四','五','六'].map(w=>'<div class="wd">'+w+'</div>').join('');
+  for(let i=0;i<first;i++) h+='<div class="d blank"></div>';
+  const t=today();
+  for(let d=1;d<=daysIn;d++){
+    const ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    h+='<div class="d '+(pmap[d]||'')+(ds===t?' today':'')+'">'+d+'</div>';
+  }
+  h+='</div><div class="wrap" style="font-size:12px;color:#8e8e93">粉色为经期日。点右下角 + 记一次经期。</div>';
+  return h;
+}
+function moveM(n){calM+=n;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}tabPer(0);}
+function tlHtml(){
+  const list=db.periods.slice().sort((a,b)=>a.start.localeCompare(b.start));
+  if(!list.length) return '<div class="empty">还没有经期记录</div>';
+  let h='<div class="tl">';
+  list.forEach((p,i)=>{
+    const dur=days(p.start,p.end||p.start)+1;
+    const gap=i?days(list[i-1].end||list[i-1].start,p.start):null;
+    h+='<div class="item"><div class="t">'+esc(p.start)+(p.end?' → '+esc(p.end):'')+'</div>'
+      +'<div class="s">持续 '+dur+' 天'
+      +(gap!=null?' · 距上次结束 '+gap+' 天':'')
+      +(p.flow?' · 量'+esc(p.flow):'')
+      +(p.pain&&p.pain!=='无'?' · 痛经'+esc(p.pain):'')
+      +(p.note?'<br>'+esc(p.note):'')+'</div></div>';
+  });
+  h+='</div>';
+  return h;
+}
+function listHtml(){
+  const list=db.periods.slice().sort((a,b)=>b.start.localeCompare(a.start));
+  if(!list.length) return '<div class="empty">还没有经期记录</div>';
+  return '<div class="wrap">'+list.map(p=>'<div class="card">'
+    +'<div class="acts"><button onclick="editPer(\''+p.id+'\')">编辑</button>'
+    +'<button class="del" onclick="delPer(\''+p.id+'\')">删除</button></div>'
+    +'<div class="date">'+esc(p.start)+(p.end?' → '+esc(p.end):'')+'</div>'
+    +'<div class="row">持续 '+days(p.start,p.end||p.start)+1+' 天</div>'
+    +(p.flow?'<span class="tag">量'+esc(p.flow)+'</span>':'')
+    +(p.pain?'<span class="tag">痛经'+esc(p.pain)+'</span>':'')
+    +(p.note?'<div class="row">'+esc(p.note)+'</div>':'')
+    +'</div>').join('')+'</div>';
+}
+
+function rSet(m){
+  m.innerHTML='<div class="wrap">'
+    +'<div class="card"><h3 style="margin-top:0">数据备份</h3>'
+    +'<div class="row" style="color:#8e8e93;font-size:13px">数据只存在这台设备。换设备或清理缓存前，先导出备份。</div>'
+    +'<button class="btn" onclick="exp()">导出备份文件</button>'
+    +'<button class="btn sec" onclick="document.getElementById(\'imp\').click()">导入备份文件</button>'
+    +'<input type="file" id="imp" accept=".json" style="display:none">'
+    +'</div>'
+    +'<div class="card"><h3 style="margin-top:0">危险操作</h3>'
+    +'<button class="btn sec" style="color:#ff3b30" onclick="clr()">清空全部数据</button>'
+    +'</div></div>';
+  $('imp').onchange=imp;
+}
+function exp(){
+  const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);
+  a.download='健康档案备份_'+today()+'.json';a.click();
+}
+function imp(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const o=JSON.parse(r.result);
+      if(!o.events||!o.periods) throw 0;
+      if(confirm('导入 '+o.events.length+' 条事件、'+o.periods.length+' 次经期？\n确定=合并，取消=覆盖')){
+        const ids=new Set(db.events.map(x=>x.id));
+        o.events.forEach(x=>{if(!ids.has(x.id))db.events.push(x);});
+        const pids=new Set(db.periods.map(x=>x.id));
+        o.periods.forEach(x=>{if(!pids.has(x.id))db.periods.push(x);});
+      }else{db=o;}
+      save();render();alert('导入完成');
+    }catch(err){alert('文件格式不对');}
+  };
+  r.readAsText(f);e.target.value='';
+}
+function clr(){
+  if(!confirm('确定清空全部数据？无法恢复。'))return;
+  if(!confirm('再确认一次：真的要清空？'))return;
+  db={events:[],periods:[]};save();render();
+}
+
+/* ---------- 面板 ---------- */
+function openP(html){$('panel').innerHTML=html;$('mask').classList.add('on');$('panel').classList.add('on');}
+function closeP(){$('mask').classList.remove('on');$('panel').classList.remove('on');editing=null;}
+$('mask').onclick=closeP;
+
+$('fab').onclick=()=>{ if(view==='per') perForm(); else evForm(); };
+
+function evForm(ev){
+  editing=ev?ev.id:null;
+  const reasons=ev?ev.reasons||[]:[];
+  const allReasons=['胃痛','经期不规律','常规体检','腹胀','反酸','头痛','失眠','疲劳','感冒','复查','其他'];
+  openP('<h2>'+(ev?'编辑事件':'记录一次事件')+'</h2>'
+    +'<div class="grid2">'
+    +'<div class="field"><label>日期 *</label><input type="date" id="f_date" value="'+esc(ev?ev.date:today())+'"></div>'
+    +'<div class="field"><label>科室</label><input id="f_dept" value="'+esc(ev?ev.dept:'')+'" placeholder="如：消化内科"></div>'
+    +'</div>'
+    +'<div class="field"><label>医院</label><input id="f_hosp" value="'+esc(ev?ev.hosp:'')+'" placeholder="如：某市第一人民医院"></div>'
+    +'<div class="field"><label>这次的原因 / 目的（可多选）</label><div id="chips">'
+    +allReasons.map(r=>'<span class="chip'+(reasons.includes(r)?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+r+'</span>').join('')
+    +'</div></div>'
+    +'<div class="field"><label>补充原因（自由写）</label><input id="f_reason2" value="'+esc(ev?ev.reason2:'')+'" placeholder="不在上面选项里的，写这里"></div>'
+    +'<div class="field"><label>检查项目与结果</label><textarea id="f_exam" rows="3">'+esc(ev?ev.exam:'')+'</textarea></div>'
+    +'<div class="field"><label>诊断</label><input id="f_diag" value="'+esc(ev?ev.diag:'')+'" placeholder="如：慢性胃炎"></div>'
+    +'<div class="field"><label>用药</label><textarea id="f_med" rows="2">'+esc(ev?ev.med:'')+'</textarea></div>'
+    +'<div class="field"><label>我的感受</label><textarea id="f_feel" rows="2">'+esc(ev?ev.feel:'')+'</textarea></div>'
+    +'<div class="field"><label><input type="checkbox" id="f_herb" '+(ev&&ev.herb?'checked':'')+' style="width:auto;margin-right:6px">含中药调理</label></div>'
+    +'<button class="btn" onclick="saveEv()">保存</button>'
+    +'<button class="btn sec" onclick="closeP()">取消</button>');
+}
+function saveEv(){
+  const date=$('f_date').value;
+  if(!date){alert('请选日期');return;}
+  const reasons=[...document.querySelectorAll('#chips .chip.on')].map(c=>c.textContent);
+  const r2=$('f_reason2').value.trim();
+  if(r2) reasons.push(r2);
+  const o={
+    id:editing||Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    date:date, dept:$('f_dept').value.trim(), hosp:$('f_hosp').value.trim(),
+    reasons:reasons, reason2:'', exam:$('f_exam').value.trim(),
+    diag:$('f_diag').value.trim(), med:$('f_med').value.trim(),
+    feel:$('f_feel').value.trim(), herb:$('f_herb').checked
+  };
+  if(editing) db.events=db.events.map(x=>x.id===editing?o:x);
+  else db.events.push(o);
+  save();closeP();render();
+}
+function editEv(id){const ev=db.events.find(x=>x.id===id);if(ev)evForm(ev);}
+function delEv(id){if(!confirm('删除这条记录？'))return;db.events=db.events.filter(x=>x.id!==id);save();render();}
+
+function perForm(p){
+  editing=p?p.id:null;
+  openP('<h2>'+(p?'编辑经期':'记录一次经期')+'</h2>'
+    +'<div class="grid2">'
+    +'<div class="field"><label>开始日期 *</label><input type="date" id="p_start" value="'+esc(p?p.start:today())+'"></div>'
+    +'<div class="field"><label>结束日期</label><input type="date" id="p_end" value="'+esc(p?p.end:'')+'"></div>'
+    +'</div>'
+    +'<div class="field"><label>量</label><select id="p_flow">'
+    +['','少','中','多'].map(v=>'<option '+(p&&p.flow===v?'selected':'')+'>'+v+'</option>').join('')
+    +'</select></div>'
+    +'<div class="field"><label>痛经</label><select id="p_pain">'
+    +['无','轻','中','重'].map(v=>'<option '+(p&&p.pain===v?'selected':'')+'>'+v+'</option>').join('')
+    +'</select></div>'
+    +'<div class="field"><label>备注（颜色、血块、情绪等）</label><textarea id="p_note" rows="3">'+esc(p?p.note:'')+'</textarea></div>'
+    +'<button class="btn" onclick="savePer()">保存</button>'
+    +'<button class="btn sec" onclick="closeP()">取消</button>');
+}
+function savePer(){
+  const s=$('p_start').value;
+  if(!s){alert('请选开始日期');return;}
+  const e=$('p_end').value;
+  if(e && e<s){alert('结束日期不能早于开始日期');return;}
+  const o={
+    id:editing||Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    start:s, end:e, flow:$('p_flow').value, pain:$('p_pain').value,
+    note:$('p_note').value.trim()
+  };
+  if(editing) db.periods=db.periods.map(x=>x.id===editing?o:x);
+  else db.periods.push(o);
+  save();closeP();render();
+}
+function editPer(id){const p=db.periods.find(x=>x.id===id);if(p)perForm(p);}
+function delPer(id){if(!confirm('删除这次经期记录？'))return;db.periods=db.periods.filter(x=>x.id!==id);save();render();}
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render();});
+render();
+</script>
+</body>
+</html>
