@@ -95,6 +95,32 @@ border-radius:50%;background:#ff5c8a;border:2px solid #fff}
 .tl .gap{font-size:12px;color:#c2185b;background:#ffe8ee;
 display:inline-block;padding:2px 8px;border-radius:10px;margin:4px 0 0 0}
 .hint{font-size:12px;color:#8e8e93;text-align:center;padding:12px}
+/* 对话页 */
+#chatWrap{display:flex;flex-direction:column;height:100%}
+#chatScroll{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
+#chatBar{flex-shrink:0;background:#fff;border-top:1px solid #e5e5ea;
+padding:8px 12px;padding-bottom:8px}
+.qq{display:inline-block;padding:5px 11px;background:#f0f0f3;border-radius:14px;
+font-size:12px;color:#0a84ff;margin:0 6px 6px 0;cursor:pointer;user-select:none}
+.qq:active{background:#e0e0e5}
+.bubble-u{background:#0a84ff;color:#fff;border-radius:16px 16px 4px 16px;
+padding:10px 13px;margin:10px 0 10px auto;max-width:82%;width:fit-content;
+font-size:14px;line-height:1.5;word-break:break-word}
+.bubble-b{background:#fff;border-radius:16px 16px 16px 4px;
+padding:13px;margin:10px auto 10px 0;max-width:96%;
+box-shadow:0 1px 3px rgba(0,0,0,.06);
+font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word;
+font-family:-apple-system,"PingFang SC","Microsoft YaHei",monospace;color:#1c1c1e}
+.copy-btn{margin-top:10px;padding:9px 16px;background:#0a84ff;color:#fff;
+border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.copy-btn:active{background:#0070e0}
+.bubble-t{font-size:11px;color:#8e8e93;text-align:center;margin:14px 0 4px}
+.chat-hint{text-align:center;font-size:12px;color:#8e8e93;padding:20px 30px;line-height:1.8}
+.chat-input-row{display:flex;gap:8px}
+.chat-input-row input{flex:1;font-size:15px;padding:9px 12px}
+.chat-input-row button{padding:0 18px;background:#0a84ff;color:#fff;border:none;
+border-radius:8px;font-size:14px;font-weight:600;flex-shrink:0}
+.chat-input-row button:active{background:#0070e0}
 </style>
 </head>
 <body>
@@ -108,6 +134,7 @@ display:inline-block;padding:2px 8px;border-radius:10px;margin:4px 0 0 0}
     <button data-v="home" class="on"><span class="ic">🏠</span>首页</button>
     <button data-v="rec"><span class="ic">📁</span>档案</button>
     <button data-v="per"><span class="ic">🌸</span>经期</button>
+    <button data-v="chat"><span class="ic">💬</span>助手</button>
     <button data-v="set"><span class="ic">⚙️</span>设置</button>
   </nav>
 </div>
@@ -117,19 +144,17 @@ display:inline-block;padding:2px 8px;border-radius:10px;margin:4px 0 0 0}
 
 <script>
 const K='health_v1';
-let db=JSON.parse(localStorage.getItem(K)||'null')||{events:[],periods:[]};
+let db=JSON.parse(localStorage.getItem(K)||'null')||{events:[],periods:[],chats:[]};
+if(!db.chats) db.chats=[];
 
-// 把旧的 {start,end} 格式迁移到新的 {dates:[...]} 格式
+// 旧格式迁移
 if(db.periods && db.periods.length && db.periods[0].start !== undefined){
   db.periods=db.periods.map(p=>{
     const dates=[];
     if(p.start){
       let d=p.start;
       const end=p.end||p.start;
-      while(d<=end){
-        dates.push(d);
-        d=addDays(d,1);
-      }
+      while(d<=end){dates.push(d);d=addDays(d,1);}
     }
     return {id:p.id||uid(), dates:dates, flow:p.flow||'', pain:p.pain||'', note:p.note||''};
   });
@@ -143,6 +168,11 @@ function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2
 function todayStr(){
   const d=new Date();
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function nowStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
+    +' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
 function addDays(ds,n){
   const [y,m,d]=ds.split('-').map(Number);
@@ -160,19 +190,49 @@ function fmtDate(ds){
 }
 function perStart(p){return p.dates.slice().sort()[0];}
 function perEnd(p){return p.dates.slice().sort().slice(-1)[0];}
-function sortedPeriods(){
-  return db.periods.slice().sort((a,b)=>perStart(a).localeCompare(perStart(b)));
+function sortedPeriods(){return db.periods.slice().sort((a,b)=>perStart(a).localeCompare(perStart(b)));}
+
+function toast(msg){
+  const el=document.createElement('div');
+  el.textContent=msg;
+  el.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.82);color:#fff;padding:12px 22px;border-radius:10px;z-index:999;font-size:14px;pointer-events:none';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1400);
+}
+
+function copyText(text){
+  const done=()=>toast('已复制到剪贴板');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+  } else {
+    fallbackCopy(text,done);
+  }
+}
+function fallbackCopy(text,done){
+  const ta=document.createElement('textarea');
+  ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try{document.execCommand('copy');done();}catch(e){toast('复制失败，请长按选中');}
+  document.body.removeChild(ta);
 }
 
 let view='home', calY, calM, editing=null;
 
 function render(){
-  const m=$('main'); m.scrollTop=0;
+  const m=$('main');
+  if(view==='chat'){
+    m.style.overflow='hidden';
+  } else {
+    m.style.overflow='auto';
+    m.scrollTop=0;
+  }
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   $('fab').style.display=(view==='home'||view==='rec')?'block':'none';
   if(view==='home') rHome(m);
   if(view==='rec') rRec(m);
   if(view==='per') rPer(m);
+  if(view==='chat') rChat(m);
   if(view==='set') rSet(m);
   $('sub').textContent='数据仅存本机 · '+db.events.length+' 条事件 · '+db.periods.length+' 次经期';
 }
@@ -188,7 +248,6 @@ function rHome(m){
     const today=todayStr();
     const dur=p.dates.length;
     const sinceEnd=diffDays(e,today);
-    // 如果结束日在今天或之后，视为还在经期中
     if(e>=today){
       h+='<div class="line"><span>本次经期</span><span>进行中</span></div>';
       h+='<div class="line"><span>已持续</span><span>'+dur+' 天</span></div>';
@@ -268,7 +327,6 @@ function tabPer(i){
 function calHtml(){
   const first=new Date(calY,calM,1).getDay();
   const daysIn=new Date(calY,calM+1,0).getDate();
-  // 收集所有被标记的日期
   const pmap={};
   db.periods.forEach(p=>p.dates.forEach(d=>pmap[d]=true));
   const today=todayStr();
@@ -288,24 +346,17 @@ function calHtml(){
 function moveM(n){calM+=n;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}tabPer(0);}
 
 function toggleDay(ds){
-  // 查找包含该日期的经期
   let foundIdx=-1;
   db.periods.forEach((p,i)=>{ if(p.dates.includes(ds)) foundIdx=i; });
-
   if(foundIdx>=0){
-    // 取消：从该经期移除这一天
     const p=db.periods[foundIdx];
     p.dates=p.dates.filter(d=>d!==ds);
     if(!p.dates.length) db.periods.splice(foundIdx,1);
     save(); render(); return;
   }
-
-  // 新增：查找前后相邻的经期
   const prev=db.periods.find(p=>p.dates.includes(addDays(ds,-1)));
   const next=db.periods.find(p=>p.dates.includes(addDays(ds,1)));
-
   if(prev && next && prev!==next){
-    // 前后都属于不同的经期 → 合并
     prev.dates=[...new Set([...prev.dates,...next.dates,ds])].sort();
     db.periods=db.periods.filter(p=>p!==next);
   } else if(prev){
@@ -327,12 +378,9 @@ function tlHtml(){
     const dur=p.dates.length;
     const today=todayStr();
     const ongoing=e>=today;
-    let line2;
-    if(ongoing){
-      line2='<span style="color:#c2185b;font-weight:600">进行中 · 已持续 '+dur+' 天</span>';
-    } else {
-      line2='持续 '+dur+' 天';
-    }
+    let line2 = ongoing
+      ? '<span style="color:#c2185b;font-weight:600">进行中 · 已持续 '+dur+' 天</span>'
+      : '持续 '+dur+' 天';
     let gapLine='';
     if(i>0){
       const prevEnd=perEnd(list[i-1]);
@@ -369,6 +417,171 @@ function listHtml(){
   }).join('')+'</div>';
 }
 
+/* ============ 对话页 ============ */
+const TOPIC_WORDS=['胃痛','胃镜','胃炎','胃','反酸','腹胀','消化','腹痛','头痛','头晕','失眠','睡眠','睡不着','疲劳','乏力','感冒','发烧','咳嗽','经期','月经','例假','生理期','痛经','中药','调理','血压','血糖','血脂','心悸','胸闷','腰痛','关节','过敏','甲状腺','激素','体检','复查'];
+
+function rChat(m){
+  let history='';
+  if(!db.chats.length){
+    history='<div class="chat-hint">点下面的问题快速生成，或者在下方输入框自己问。<br><br>助手会翻你本地档案，整理成一段<b>脱敏</b>文字，你复制去问外面更强的 AI。<br><br>数据不会离开这台设备。</div>';
+  } else {
+    db.chats.forEach(c=>{
+      history+='<div class="bubble-t">'+esc(c.time)+'</div>';
+      history+='<div class="bubble-u">'+esc(c.question)+'</div>';
+      history+='<div class="bubble-b">'+esc(c.summary)
+        +'<button class="copy-btn" onclick="copyById(\''+c.id+'\')">复制这段</button>'
+        +'<button class="copy-btn" style="background:#8e8e93;margin-left:8px" onclick="delChat(\''+c.id+'\')">删除</button>'
+        +'</div>';
+    });
+  }
+  m.innerHTML='<div id="chatWrap">'
+    +'<div id="chatScroll">'+history+'</div>'
+    +'<div id="chatBar">'
+    +'<div>'
+    +['我最近经期怎么样？','我以前胃不舒服过吗？','我吃过哪些药？','我整体健康状况如何？'].map(q=>'<span class="qq" onclick="ask(\''+q+'\')">'+q+'</span>').join('')
+    +'</div>'
+    +'<div class="chat-input-row">'
+    +'<input id="chatInput" placeholder="输入你的问题…" onkeydown="if(event.key===\'Enter\')ask()">'
+    +'<button onclick="ask()">发送</button>'
+    +'</div>'
+    +'</div>'
+    +'</div>';
+  scrollChatBottom();
+}
+function scrollChatBottom(){
+  setTimeout(()=>{
+    const s=$('chatScroll');
+    if(s) s.scrollTop=s.scrollHeight;
+  },60);
+}
+function ask(preset){
+  const inp=$('chatInput');
+  const q=(preset!=null?preset:(inp?inp.value.trim():''));
+  if(!q){toast('请输入问题');return;}
+  if(inp) inp.value='';
+  const summary=buildSummary(q);
+  db.chats.push({id:uid(),time:nowStr(),question:q,summary:summary});
+  save();
+  rChat($('main'));
+}
+function copyById(id){
+  const c=db.chats.find(x=>x.id===id);
+  if(c) copyText(c.summary);
+}
+function delChat(id){
+  if(!confirm('删除这条对话？'))return;
+  db.chats=db.chats.filter(x=>x.id!==id);
+  save(); rChat($('main'));
+}
+
+function buildSummary(question){
+  const matched=TOPIC_WORDS.filter(w=>question.includes(w));
+  const aboutPeriod=matched.some(w=>['经期','月经','例假','生理期','痛经'].includes(w))||/经期|月经|例假|大姨妈/.test(question);
+  const aboutHerb=matched.includes('中药')||matched.includes('调理')||/中药|调理|汤药/.test(question);
+
+  // 匹配的事件
+  const matchedEvents=db.events.filter(e=>{
+    const text=[(e.reasons||[]).join(' '),e.diag,e.exam,e.med,e.feel,e.dept,e.hosp].join(' ');
+    if(matched.length===0){
+      // 没匹配到关键词时，如果问"整体""健康""体检""所有"就当整体
+      return /整体|全部|所有|综合|健康|总体/.test(question);
+    }
+    return matched.some(w=>text.includes(w));
+  });
+
+  const lines=[];
+  lines.push('【整理自本地健康档案，已脱敏】');
+  lines.push('');
+  lines.push('【基本情况】');
+  lines.push('女性。'+(aboutPeriod?'关注经期情况。':'')+(aboutHerb?'有中药调理记录。':''));
+  lines.push('');
+
+  let hasContent=false;
+
+  // 经期部分
+  if(aboutPeriod){
+    const ps=sortedPeriods();
+    if(ps.length){
+      hasContent=true;
+      const recent=ps.slice(-10).reverse();
+      lines.push('【经期记录】（共 '+ps.length+' 次，列出最近 '+recent.length+' 次）');
+      recent.forEach((p,i)=>{
+        const s=perStart(p), e=perEnd(p);
+        let sLine='- '+s+(s!==e?' 至 '+e:'')+'，持续 '+p.dates.length+' 天';
+        if(p.flow) sLine+='，量'+p.flow;
+        if(p.pain) sLine+='，痛经'+p.pain;
+        if(p.note) sLine+='。'+p.note;
+        // 加上间隔
+        if(i<recent.length-1){
+          const prev=recent[i+1];
+          const gap=diffDays(perEnd(prev),s);
+          sLine+='（距上次结束 '+gap+' 天）';
+        }
+        lines.push(sLine);
+      });
+      // 汇总
+      if(ps.length>=3){
+        const gaps=[];
+        for(let i=1;i<ps.length;i++){
+          gaps.push(diffDays(perEnd(ps[i-1]),perStart(ps[i])));
+        }
+        const avg=Math.round(gaps.reduce((a,b)=>a+b,0)/gaps.length);
+        const min=Math.min(...gaps), max=Math.max(...gaps);
+        lines.push('间隔统计：平均 '+avg+' 天，最短 '+min+' 天，最长 '+max+' 天。');
+      }
+      lines.push('');
+    }
+  }
+
+  // 事件部分
+  if(matchedEvents.length){
+    hasContent=true;
+    const sorted=matchedEvents.slice().sort((a,b)=>a.date.localeCompare(b.date));
+    lines.push('【相关就诊 / 检查记录】（共 '+sorted.length+' 条）');
+    sorted.forEach(e=>{
+      let s='- '+e.date;
+      if(e.reasons && e.reasons.length) s+='，因'+e.reasons.join('、');
+      if(e.hosp || e.dept) s+='，'+'就诊某医院'+(e.dept?'（'+e.dept+'）':'');
+      if(e.exam) s+='。检查：'+e.exam.replace(/\n/g,'；');
+      if(e.diag) s+='。诊断：'+e.diag;
+      if(e.med) s+='。用药：'+e.med.replace(/\n/g,'；');
+      if(e.feel) s+='。感受：'+e.feel;
+      if(e.herb) s+='（含中药调理）';
+      lines.push(s);
+    });
+    lines.push('');
+  }
+
+  // 整体总览（当没有具体匹配时）
+  if(!hasContent){
+    lines.push('【整体情况】');
+    lines.push('共 '+db.events.length+' 条就诊/体检记录，'+db.periods.length+' 次经期记录。');
+    lines.push('');
+    if(db.events.length){
+      const recent=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+      lines.push('【最近 '+recent.length+' 条记录】');
+      recent.forEach(e=>{
+        lines.push('- '+e.date+'：'+((e.reasons||[]).join('、')||e.diag||'记录')
+          +(e.diag?'（诊断：'+e.diag+'）':''));
+      });
+      lines.push('');
+    }
+    if(db.periods.length){
+      const ps=sortedPeriods();
+      lines.push('【经期汇总】');
+      lines.push('共记录 '+ps.length+' 次。最近一次开始于 '+perStart(ps.slice(-1)[0])+'。');
+      lines.push('');
+    }
+  }
+
+  lines.push('---');
+  lines.push('请分析：'+question);
+  lines.push('（以上信息已去除姓名、具体医院名称等身份标识，如仍需删除其他内容，请自行编辑后再发送。）');
+
+  return lines.join('\n');
+}
+
+/* ============ 设置 ============ */
 function rSet(m){
   m.innerHTML='<div class="wrap">'
     +'<div class="card"><h3 style="margin-top:0">数据备份</h3>'
@@ -400,7 +613,11 @@ function imp(e){
         o.events.forEach(x=>{if(!ids.has(x.id))db.events.push(x);});
         const pids=new Set(db.periods.map(x=>x.id));
         o.periods.forEach(x=>{if(!pids.has(x.id))db.periods.push(x);});
-      }else{db=o;}
+        if(o.chats && o.chats.length){
+          const cids=new Set(db.chats.map(x=>x.id));
+          o.chats.forEach(x=>{if(!cids.has(x.id))db.chats.push(x);});
+        }
+      }else{db=o;if(!db.chats)db.chats=[];}
       save();render();alert('导入完成');
     }catch(err){alert('文件格式不对');}
   };
@@ -409,14 +626,13 @@ function imp(e){
 function clr(){
   if(!confirm('确定清空全部数据？无法恢复。'))return;
   if(!confirm('再确认一次：真的要清空？'))return;
-  db={events:[],periods:[]};save();render();
+  db={events:[],periods:[],chats:[]};save();render();
 }
 
-/* ---------- 面板 ---------- */
+/* ============ 面板 ============ */
 function openP(html){$('panel').innerHTML=html;$('mask').classList.add('on');$('panel').classList.add('on');}
 function closeP(){$('mask').classList.remove('on');$('panel').classList.remove('on');editing=null;}
 $('mask').onclick=closeP;
-
 $('fab').onclick=()=>{ evForm(); };
 
 function evForm(ev){
