@@ -22,9 +22,12 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px
 nav{display:flex;background:#fff;border-top:1px solid #e5e5ea;
 padding-bottom:env(safe-area-inset-bottom);flex-shrink:0}
 nav button{flex:1;border:none;background:none;padding:8px 0 6px;font-size:11px;
-color:#8e8e93;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+color:#8e8e93;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
 nav button .ic{font-size:20px;line-height:1}
 nav button.on{color:#0a84ff}
+nav button .dot{position:absolute;top:4px;right:calc(50% - 18px);
+width:8px;height:8px;border-radius:50%;background:#ff3b30;display:none}
+nav button .dot.on{display:block}
 .wrap{padding:12px;max-width:760px;margin:0 auto}
 .card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;
 box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative}
@@ -95,7 +98,6 @@ border-radius:50%;background:#ff5c8a;border:2px solid #fff}
 .tl .gap{font-size:12px;color:#c2185b;background:#ffe8ee;
 display:inline-block;padding:2px 8px;border-radius:10px;margin:4px 0 0 0}
 .hint{font-size:12px;color:#8e8e93;text-align:center;padding:12px}
-/* 对话页 */
 #chatWrap{display:flex;flex-direction:column;height:100%}
 #chatScroll{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
 #chatBar{flex-shrink:0;background:#fff;border-top:1px solid #e5e5ea;
@@ -121,6 +123,33 @@ border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
 .chat-input-row button{padding:0 18px;background:#0a84ff;color:#fff;border:none;
 border-radius:8px;font-size:14px;font-weight:600;flex-shrink:0}
 .chat-input-row button:active{background:#0070e0}
+/* 消息页 */
+.switch-row{display:flex;align-items:center;justify-content:space-between;
+background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;
+box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.switch-row .lbl{font-size:15px;color:#1c1c1e}
+.switch-row .sub2{font-size:12px;color:#8e8e93;margin-top:3px}
+.switch{position:relative;width:50px;height:30px;flex-shrink:0;margin-left:12px}
+.switch input{opacity:0;width:0;height:0}
+.switch .sl{position:absolute;inset:0;background:#e9e9eb;border-radius:15px;
+transition:.2s;cursor:pointer}
+.switch .sl::before{content:'';position:absolute;width:26px;height:26px;
+left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;
+box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.switch input:checked + .sl{background:#34c759}
+.switch input:checked + .sl::before{transform:translateX(20px)}
+.msg-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;
+box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative}
+.msg-card.unread{border-left:3px solid #0a84ff}
+.msg-card .mt{font-size:12px;color:#8e8e93;margin-bottom:6px}
+.msg-card .mx{font-size:14px;line-height:1.65;color:#1c1c1e}
+.msg-card .mact{margin-top:10px;display:flex;gap:8px}
+.msg-card .mact button{padding:7px 14px;border-radius:8px;border:none;
+font-size:13px;cursor:pointer}
+.msg-card .mact .go{background:#eaf3ff;color:#0a84ff;font-weight:600}
+.msg-card .mact .del{background:#f0f0f3;color:#8e8e93}
+.msg-badge{display:inline-block;background:#ff3b30;color:#fff;font-size:10px;
+padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle}
 </style>
 </head>
 <body>
@@ -134,7 +163,7 @@ border-radius:8px;font-size:14px;font-weight:600;flex-shrink:0}
     <button data-v="home" class="on"><span class="ic">🏠</span>首页</button>
     <button data-v="rec"><span class="ic">📁</span>档案</button>
     <button data-v="per"><span class="ic">🌸</span>经期</button>
-    <button data-v="chat"><span class="ic">💬</span>助手</button>
+    <button data-v="chat"><span class="ic">💬</span>助手<span class="dot" id="navDot"></span></button>
     <button data-v="set"><span class="ic">⚙️</span>设置</button>
   </nav>
 </div>
@@ -144,10 +173,11 @@ border-radius:8px;font-size:14px;font-weight:600;flex-shrink:0}
 
 <script>
 const K='health_v1';
-let db=JSON.parse(localStorage.getItem(K)||'null')||{events:[],periods:[],chats:[]};
+let db=JSON.parse(localStorage.getItem(K)||'null')||{events:[],periods:[],chats:[],messages:[],settings:{remind:true}};
 if(!db.chats) db.chats=[];
+if(!db.messages) db.messages=[];
+if(!db.settings) db.settings={remind:true};
 
-// 旧格式迁移
 if(db.periods && db.periods.length && db.periods[0].start !== undefined){
   db.periods=db.periods.map(p=>{
     const dates=[];
@@ -217,24 +247,78 @@ function fallbackCopy(text,done){
   document.body.removeChild(ta);
 }
 
-let view='home', calY, calM, editing=null;
+/* ====== 提醒逻辑 ====== */
+const GENERIC_REASONS=['其他','常规体检','复查'];
+function checkEventLinks(newEvent){
+  if(!db.settings.remind) return;
+  if(!newEvent.reasons || !newEvent.reasons.length) return;
+  const myReasons=newEvent.reasons.filter(r=>!GENERIC_REASONS.includes(r));
+  if(!myReasons.length) return;
+  const links=[];
+  db.events.forEach(e=>{
+    if(e.id===newEvent.id) return;
+    if(!e.reasons || !e.reasons.length) return;
+    const common=e.reasons.filter(r=>myReasons.includes(r));
+    if(common.length>0) links.push({event:e, common:common});
+  });
+  if(!links.length) return;
+  links.sort((a,b)=>b.event.date.localeCompare(a.event.date));
+  const top=links[0];
+  // 避免同一条新记录重复提醒
+  if(db.messages.some(m=>m.type==='link' && m.srcId===newEvent.id)) return;
+  const text='你刚记录的这次「'+myReasons.join('、')+'」，和 '+top.event.date+' 那次类似'
+    +'（都是「'+top.common.join('、')+'」）'
+    +(top.event.diag?'，当时诊断：'+top.event.diag:'')
+    +(top.event.hosp?'，在'+top.event.hosp:'')
+    +'。';
+  db.messages.push({
+    id:uid(), time:nowStr(), type:'link',
+    text:text, refId:top.event.id, srcId:newEvent.id, read:false
+  });
+}
+
+function checkPeriodRemind(){
+  if(!db.settings.remind) return;
+  const ps=sortedPeriods();
+  if(ps.length<1) return;
+  const last=ps[ps.length-1];
+  const lastEnd=perEnd(last);
+  const today=todayStr();
+  const days=diffDays(lastEnd,today);
+  let threshold=40;
+  if(ps.length>=3){
+    const gaps=[];
+    for(let i=1;i<ps.length;i++) gaps.push(diffDays(perEnd(ps[i-1]),perStart(ps[i])));
+    const avg=gaps.reduce((a,b)=>a+b,0)/gaps.length;
+    threshold=Math.max(35,Math.round(avg*1.5));
+  }
+  if(days<threshold) return;
+  if(db.messages.some(m=>m.type==='period' && m.refId===last.id)) return;
+  db.messages.push({
+    id:uid(), time:nowStr(), type:'period',
+    text:'距离上次经期结束已经 '+days+' 天，比平时的间隔长了一些。最近有来吗？有的话去日历点一下就好。',
+    refId:last.id, read:false
+  });
+  save();
+}
+
+let view='home', calY, calM, editing=null, assistantTab='chat';
 
 function render(){
   const m=$('main');
-  if(view==='chat'){
-    m.style.overflow='hidden';
-  } else {
-    m.style.overflow='auto';
-    m.scrollTop=0;
-  }
+  if(view==='chat'){ m.style.overflow='hidden'; }
+  else { m.style.overflow='auto'; m.scrollTop=0; }
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   $('fab').style.display=(view==='home'||view==='rec')?'block':'none';
   if(view==='home') rHome(m);
   if(view==='rec') rRec(m);
   if(view==='per') rPer(m);
-  if(view==='chat') rChat(m);
+  if(view==='chat') rAssistant(m);
   if(view==='set') rSet(m);
   $('sub').textContent='数据仅存本机 · '+db.events.length+' 条事件 · '+db.periods.length+' 次经期';
+  // 未读小红点
+  const unread=db.messages.filter(x=>!x.read).length;
+  $('navDot').classList.toggle('on', unread>0);
 }
 
 function rHome(m){
@@ -417,10 +501,26 @@ function listHtml(){
   }).join('')+'</div>';
 }
 
-/* ============ 对话页 ============ */
-const TOPIC_WORDS=['胃痛','胃镜','胃炎','胃','反酸','腹胀','消化','腹痛','头痛','头晕','失眠','睡眠','睡不着','疲劳','乏力','感冒','发烧','咳嗽','经期','月经','例假','生理期','痛经','中药','调理','血压','血糖','血脂','心悸','胸闷','腰痛','关节','过敏','甲状腺','激素','体检','复查'];
+/* ============ 助手页（对话 + 消息） ============ */
+function rAssistant(m){
+  const unread=db.messages.filter(x=>!x.read).length;
+  let h='<div class="seg" style="margin-top:12px">'
+    +'<button class="'+(assistantTab==='chat'?'on':'')+'" onclick="setATab(\'chat\')">对话</button>'
+    +'<button class="'+(assistantTab==='msg'?'on':'')+'" onclick="setATab(\'msg\')">消息'
+    +(unread?' <span class="msg-badge">'+unread+'</span>':'')
+    +'</button></div>';
+  h+='<div id="assistantBody" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>';
+  m.innerHTML=h;
+  if(assistantTab==='chat') renderChat();
+  else renderMessages();
+}
+function setATab(t){
+  assistantTab=t;
+  rAssistant($('main'));
+}
 
-function rChat(m){
+function renderChat(){
+  const body=$('assistantBody');
   let history='';
   if(!db.chats.length){
     history='<div class="chat-hint">点下面的问题快速生成，或者在下方输入框自己问。<br><br>助手会翻你本地档案，整理成一段<b>脱敏</b>文字，你复制去问外面更强的 AI。<br><br>数据不会离开这台设备。</div>';
@@ -434,8 +534,7 @@ function rChat(m){
         +'</div>';
     });
   }
-  m.innerHTML='<div id="chatWrap">'
-    +'<div id="chatScroll">'+history+'</div>'
+  body.innerHTML='<div id="chatScroll">'+history+'</div>'
     +'<div id="chatBar">'
     +'<div>'
     +['我最近经期怎么样？','我以前胃不舒服过吗？','我吃过哪些药？','我整体健康状况如何？'].map(q=>'<span class="qq" onclick="ask(\''+q+'\')">'+q+'</span>').join('')
@@ -444,15 +543,8 @@ function rChat(m){
     +'<input id="chatInput" placeholder="输入你的问题…" onkeydown="if(event.key===\'Enter\')ask()">'
     +'<button onclick="ask()">发送</button>'
     +'</div>'
-    +'</div>'
     +'</div>';
-  scrollChatBottom();
-}
-function scrollChatBottom(){
-  setTimeout(()=>{
-    const s=$('chatScroll');
-    if(s) s.scrollTop=s.scrollHeight;
-  },60);
+  setTimeout(()=>{const s=$('chatScroll');if(s)s.scrollTop=s.scrollHeight;},60);
 }
 function ask(preset){
   const inp=$('chatInput');
@@ -462,7 +554,7 @@ function ask(preset){
   const summary=buildSummary(q);
   db.chats.push({id:uid(),time:nowStr(),question:q,summary:summary});
   save();
-  rChat($('main'));
+  renderChat();
 }
 function copyById(id){
   const c=db.chats.find(x=>x.id===id);
@@ -471,34 +563,27 @@ function copyById(id){
 function delChat(id){
   if(!confirm('删除这条对话？'))return;
   db.chats=db.chats.filter(x=>x.id!==id);
-  save(); rChat($('main'));
+  save(); renderChat();
 }
 
 function buildSummary(question){
   const matched=TOPIC_WORDS.filter(w=>question.includes(w));
   const aboutPeriod=matched.some(w=>['经期','月经','例假','生理期','痛经'].includes(w))||/经期|月经|例假|大姨妈/.test(question);
   const aboutHerb=matched.includes('中药')||matched.includes('调理')||/中药|调理|汤药/.test(question);
-
-  // 匹配的事件
   const matchedEvents=db.events.filter(e=>{
     const text=[(e.reasons||[]).join(' '),e.diag,e.exam,e.med,e.feel,e.dept,e.hosp].join(' ');
     if(matched.length===0){
-      // 没匹配到关键词时，如果问"整体""健康""体检""所有"就当整体
       return /整体|全部|所有|综合|健康|总体/.test(question);
     }
     return matched.some(w=>text.includes(w));
   });
-
   const lines=[];
   lines.push('【整理自本地健康档案，已脱敏】');
   lines.push('');
   lines.push('【基本情况】');
   lines.push('女性。'+(aboutPeriod?'关注经期情况。':'')+(aboutHerb?'有中药调理记录。':''));
   lines.push('');
-
   let hasContent=false;
-
-  // 经期部分
   if(aboutPeriod){
     const ps=sortedPeriods();
     if(ps.length){
@@ -511,7 +596,6 @@ function buildSummary(question){
         if(p.flow) sLine+='，量'+p.flow;
         if(p.pain) sLine+='，痛经'+p.pain;
         if(p.note) sLine+='。'+p.note;
-        // 加上间隔
         if(i<recent.length-1){
           const prev=recent[i+1];
           const gap=diffDays(perEnd(prev),s);
@@ -519,12 +603,9 @@ function buildSummary(question){
         }
         lines.push(sLine);
       });
-      // 汇总
       if(ps.length>=3){
         const gaps=[];
-        for(let i=1;i<ps.length;i++){
-          gaps.push(diffDays(perEnd(ps[i-1]),perStart(ps[i])));
-        }
+        for(let i=1;i<ps.length;i++) gaps.push(diffDays(perEnd(ps[i-1]),perStart(ps[i])));
         const avg=Math.round(gaps.reduce((a,b)=>a+b,0)/gaps.length);
         const min=Math.min(...gaps), max=Math.max(...gaps);
         lines.push('间隔统计：平均 '+avg+' 天，最短 '+min+' 天，最长 '+max+' 天。');
@@ -532,8 +613,6 @@ function buildSummary(question){
       lines.push('');
     }
   }
-
-  // 事件部分
   if(matchedEvents.length){
     hasContent=true;
     const sorted=matchedEvents.slice().sort((a,b)=>a.date.localeCompare(b.date));
@@ -551,8 +630,6 @@ function buildSummary(question){
     });
     lines.push('');
   }
-
-  // 整体总览（当没有具体匹配时）
   if(!hasContent){
     lines.push('【整体情况】');
     lines.push('共 '+db.events.length+' 条就诊/体检记录，'+db.periods.length+' 次经期记录。');
@@ -573,12 +650,68 @@ function buildSummary(question){
       lines.push('');
     }
   }
-
   lines.push('---');
   lines.push('请分析：'+question);
   lines.push('（以上信息已去除姓名、具体医院名称等身份标识，如仍需删除其他内容，请自行编辑后再发送。）');
-
   return lines.join('\n');
+}
+
+const TOPIC_WORDS=['胃痛','胃镜','胃炎','胃','反酸','腹胀','消化','腹痛','头痛','头晕','失眠','睡眠','睡不着','疲劳','乏力','感冒','发烧','咳嗽','经期','月经','例假','生理期','痛经','中药','调理','血压','血糖','血脂','心悸','胸闷','腰痛','关节','过敏','甲状腺','激素','体检','复查'];
+
+/* ============ 消息页 ============ */
+function renderMessages(){
+  const body=$('assistantBody');
+  const list=db.messages.slice().sort((a,b)=>b.time.localeCompare(a.time));
+  let h='<div style="flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch">';
+  h+='<div class="switch-row"><div><div class="lbl">主动提醒</div>'
+    +'<div class="sub2">录完记录后自动比对；经期久了没记时提醒</div></div>'
+    +'<label class="switch"><input type="checkbox" id="remindSwitch" '+(db.settings.remind?'checked':'')
+    +' onchange="toggleRemind(this.checked)"><span class="sl"></span></label></div>';
+  if(!list.length){
+    h+='<div class="empty" style="padding:30px 20px">还没有消息<br><span style="font-size:13px">录入记录后，如果和以前相关，会在这里提醒你</span></div>';
+  } else {
+    list.forEach(m=>{
+      h+='<div class="msg-card'+(m.read?'':' unread')+'">'
+        +'<div class="mt">'+esc(m.time)+'</div>'
+        +'<div class="mx">'+esc(m.text)+'</div>'
+        +'<div class="mact">'
+        +(m.type==='link'?'<button class="go" onclick="jumpTo(\''+m.refId+'\',\''+m.id+'\')">查看那次记录</button>':'')
+        +(m.type==='period'?'<button class="go" onclick="goCalendar(\''+m.id+'\')">去日历记录</button>':'')
+        +'<button class="del" onclick="delMsg(\''+m.id+'\')">删除</button>'
+        +'</div>'
+        +'</div>';
+    });
+  }
+  h+='</div>';
+  body.innerHTML=h;
+  // 打开消息页后，全部标为已读
+  if(db.messages.some(x=>!x.read)){
+    db.messages.forEach(x=>x.read=true);
+    save();
+    setTimeout(()=>{const u=db.messages.filter(x=>!x.read).length;
+      $('navDot').classList.toggle('on',u>0);},100);
+  }
+}
+function toggleRemind(on){
+  db.settings.remind=on;
+  save();
+  toast(on?'已开启主动提醒':'已关闭主动提醒');
+}
+function delMsg(id){
+  db.messages=db.messages.filter(x=>x.id!==id);
+  save(); renderMessages();
+}
+function jumpTo(refId,msgId){
+  const ev=db.events.find(x=>x.id===refId);
+  if(!ev){toast('找不到这条记录');return;}
+  evForm(ev);
+}
+function goCalendar(msgId){
+  db.messages=db.messages.filter(x=>x.id!==msgId);
+  save();
+  assistantTab='chat';
+  view='per';
+  render();
 }
 
 /* ============ 设置 ============ */
@@ -617,7 +750,11 @@ function imp(e){
           const cids=new Set(db.chats.map(x=>x.id));
           o.chats.forEach(x=>{if(!cids.has(x.id))db.chats.push(x);});
         }
-      }else{db=o;if(!db.chats)db.chats=[];}
+        if(o.messages && o.messages.length){
+          const mids=new Set(db.messages.map(x=>x.id));
+          o.messages.forEach(x=>{if(!mids.has(x.id))db.messages.push(x);});
+        }
+      }else{db=o;if(!db.chats)db.chats=[];if(!db.messages)db.messages=[];if(!db.settings)db.settings={remind:true};}
       save();render();alert('导入完成');
     }catch(err){alert('文件格式不对');}
   };
@@ -626,7 +763,7 @@ function imp(e){
 function clr(){
   if(!confirm('确定清空全部数据？无法恢复。'))return;
   if(!confirm('再确认一次：真的要清空？'))return;
-  db={events:[],periods:[],chats:[]};save();render();
+  db={events:[],periods:[],chats:[],messages:[],settings:{remind:true}};save();render();
 }
 
 /* ============ 面板 ============ */
@@ -663,6 +800,7 @@ function saveEv(){
   const reasons=[...document.querySelectorAll('#chips .chip.on')].map(c=>c.textContent);
   const r2=$('f_reason2').value.trim();
   if(r2) reasons.push(r2);
+  const isNew=!editing;
   const o={
     id:editing||uid(),
     date:date, dept:$('f_dept').value.trim(), hosp:$('f_hosp').value.trim(),
@@ -672,6 +810,7 @@ function saveEv(){
   };
   if(editing) db.events=db.events.map(x=>x.id===editing?o:x);
   else db.events.push(o);
+  if(isNew) checkEventLinks(o);
   save();closeP();render();
 }
 function editEv(id){const ev=db.events.find(x=>x.id===id);if(ev)evForm(ev);}
@@ -706,6 +845,9 @@ function editPer(id){const p=db.periods.find(x=>x.id===id);if(p)perForm(p);}
 function delPer(id){if(!confirm('删除这次经期记录？'))return;db.periods=db.periods.filter(x=>x.id!==id);save();render();}
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render();});
+
+// 启动
+checkPeriodRemind();
 render();
 </script>
 </body>
