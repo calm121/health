@@ -70,9 +70,6 @@ textarea{resize:vertical}
 .btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:16px;
 font-weight:600;background:#0a84ff;color:#fff;margin-top:6px}
 .btn.sec{background:#f0f0f3;color:#1c1c1e;margin-top:8px}
-.foot{display:flex;gap:10px;padding:0 12px 16px;max-width:760px;margin:0 auto}
-.foot button{flex:1;padding:11px;border-radius:10px;border:1px solid #d1d1d6;
-background:#fff;font-size:14px;color:#3a3a3c}
 .chip{display:inline-block;padding:7px 12px;border-radius:18px;background:#f0f0f3;
 font-size:13px;color:#3a3a3c;margin:0 6px 6px 0;cursor:pointer;border:1px solid transparent}
 .chip.on{background:#eaf3ff;color:#0a84ff;border-color:#0a84ff}
@@ -83,17 +80,21 @@ width:36px;height:36px;font-size:18px;color:#0a84ff}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:0 12px}
 .cal .wd{text-align:center;font-size:12px;color:#8e8e93;padding:6px 0}
 .cal .d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
-font-size:13px;border-radius:8px;color:#1c1c1e;position:relative}
-.cal .d.blank{visibility:hidden}
-.cal .d.p{background:#ffd6e0;color:#c2185b;font-weight:600}
-.cal .d.today{outline:2px solid #0a84ff}
+font-size:14px;border-radius:50%;color:#1c1c1e;cursor:pointer;
+transition:background .15s}
+.cal .d.blank{visibility:hidden;cursor:default}
+.cal .d.p{background:#ff5c8a;color:#fff;font-weight:700}
+.cal .d.today{box-shadow:inset 0 0 0 2px #0a84ff}
 .tl{padding:6px 12px}
-.tl .item{position:relative;padding:0 0 18px 22px;border-left:2px solid #d1d1d6;margin-left:6px}
-.tl .item:last-child{border-left-color:transparent}
+.tl .item{position:relative;padding:0 0 20px 22px;border-left:2px solid #d1d1d6;margin-left:6px}
+.tl .item:last-child{border-left-color:transparent;padding-bottom:6px}
 .tl .item::before{content:'';position:absolute;left:-7px;top:2px;width:12px;height:12px;
 border-radius:50%;background:#ff5c8a;border:2px solid #fff}
 .tl .t{font-size:14px;font-weight:600}
-.tl .s{font-size:12px;color:#8e8e93;margin-top:3px;line-height:1.6}
+.tl .s{font-size:13px;color:#8e8e93;margin-top:4px;line-height:1.7}
+.tl .gap{font-size:12px;color:#c2185b;background:#ffe8ee;
+display:inline-block;padding:2px 8px;border-radius:10px;margin:4px 0 0 0}
+.hint{font-size:12px;color:#8e8e93;text-align:center;padding:12px}
 </style>
 </head>
 <body>
@@ -117,20 +118,58 @@ border-radius:50%;background:#ff5c8a;border:2px solid #fff}
 <script>
 const K='health_v1';
 let db=JSON.parse(localStorage.getItem(K)||'null')||{events:[],periods:[]};
+
+// 把旧的 {start,end} 格式迁移到新的 {dates:[...]} 格式
+if(db.periods && db.periods.length && db.periods[0].start !== undefined){
+  db.periods=db.periods.map(p=>{
+    const dates=[];
+    if(p.start){
+      let d=p.start;
+      const end=p.end||p.start;
+      while(d<=end){
+        dates.push(d);
+        d=addDays(d,1);
+      }
+    }
+    return {id:p.id||uid(), dates:dates, flow:p.flow||'', pain:p.pain||'', note:p.note||''};
+  });
+  save();
+}
+
 const $=id=>document.getElementById(id);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const save=()=>localStorage.setItem(K,JSON.stringify(db));
-const today=()=>new Date().toISOString().slice(0,10);
-let view='home', calY, calM, editing=null;
+function save(){localStorage.setItem(K,JSON.stringify(db));}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function todayStr(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function addDays(ds,n){
+  const [y,m,d]=ds.split('-').map(Number);
+  const dt=new Date(y,m-1,d+n);
+  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+}
+function diffDays(a,b){
+  const [y1,m1,d1]=a.split('-').map(Number);
+  const [y2,m2,d2]=b.split('-').map(Number);
+  return Math.round((new Date(y2,m2-1,d2)-new Date(y1,m1-1,d1))/86400000);
+}
+function fmtDate(ds){
+  const [y,m,d]=ds.split('-').map(Number);
+  return y+'年'+m+'月'+d+'日';
+}
+function perStart(p){return p.dates.slice().sort()[0];}
+function perEnd(p){return p.dates.slice().sort().slice(-1)[0];}
+function sortedPeriods(){
+  return db.periods.slice().sort((a,b)=>perStart(a).localeCompare(perStart(b)));
+}
 
-function days(a,b){return Math.round((new Date(b)-new Date(a))/86400000);}
-function lastPeriod(){return db.periods.slice().sort((x,y)=>y.start.localeCompare(x.start))[0];}
-function lastEvent(){return db.events.slice().sort((x,y)=>y.date.localeCompare(x.date))[0];}
+let view='home', calY, calM, editing=null;
 
 function render(){
   const m=$('main'); m.scrollTop=0;
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
-  $('fab').style.display=(view==='home'||view==='per')?'block':'none';
+  $('fab').style.display=(view==='home'||view==='rec')?'block':'none';
   if(view==='home') rHome(m);
   if(view==='rec') rRec(m);
   if(view==='per') rPer(m);
@@ -139,30 +178,39 @@ function render(){
 }
 
 function rHome(m){
-  const p=lastPeriod(), e=lastEvent();
+  const ps=sortedPeriods();
+  const p=ps.slice(-1)[0];
+  const ev=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
   let h='<div class="wrap">';
   h+='<div class="stat"><div class="big">现在</div>';
   if(p){
-    const d=days(p.start,today());
-    h+='<div class="line"><span>最近一次经期开始</span><span>'+esc(p.start)+'</span></div>';
-    h+='<div class="line"><span>距今天</span><span>'+d+' 天</span></div>';
+    const s=perStart(p), e=perEnd(p);
+    const today=todayStr();
+    const dur=p.dates.length;
+    const sinceEnd=diffDays(e,today);
+    // 如果结束日在今天或之后，视为还在经期中
+    if(e>=today){
+      h+='<div class="line"><span>本次经期</span><span>进行中</span></div>';
+      h+='<div class="line"><span>已持续</span><span>'+dur+' 天</span></div>';
+    } else {
+      h+='<div class="line"><span>最近一次经期</span><span>'+fmtDate(s)+'</span></div>';
+      h+='<div class="line"><span>持续</span><span>'+dur+' 天</span></div>';
+      h+='<div class="line"><span>距结束已过</span><span>'+sinceEnd+' 天</span></div>';
+    }
   }else{
     h+='<div class="line"><span>经期</span><span>还没有记录</span></div>';
   }
-  if(e){
-    h+='<div class="line"><span>最近一次就诊</span><span>'+esc(e.date)+'</span></div>';
-    h+='<div class="line"><span>原因</span><span>'+esc((e.reasons||[]).join('、')||e.diag||'—')+'</span></div>';
-  }else{
-    h+='<div class="line"><span>就诊</span><span>还没有记录</span></div>';
+  if(ev){
+    h+='<div class="line" style="margin-top:6px"><span>最近就诊</span><span>'+esc(ev.date)+'</span></div>';
   }
   h+='</div>';
   const list=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
   h+='<div class="card"><h3 style="margin:0 0 6px">最近的事件</h3>';
   if(!list.length) h+='<div class="empty" style="padding:20px">还没有记录，点右下角 + 添加</div>';
-  list.forEach(ev=>{
+  list.forEach(e=>{
     h+='<div class="row" style="border-top:1px solid #f0f0f3;padding-top:8px">'
-      +'<b>'+esc(ev.date)+'</b> · '+esc((ev.reasons||[]).join('、')||ev.diag||'记录')
-      +(ev.hosp?' <span style="color:#8e8e93">'+esc(ev.hosp)+'</span>':'')+'</div>';
+      +'<b>'+esc(e.date)+'</b> · '+esc((e.reasons||[]).join('、')||e.diag||'记录')
+      +(e.hosp?' <span style="color:#8e8e93">'+esc(e.hosp)+'</span>':'')+'</div>';
   });
   h+='</div></div>';
   m.innerHTML=h;
@@ -177,15 +225,14 @@ function rRec(m){
 function tabRec(i){
   document.querySelectorAll('.seg button').forEach((b,j)=>b.classList.toggle('on',i===j));
   const body=$('recBody');
-  if(i===0){
-    const list=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date));
-    if(!list.length){body.innerHTML='<div class="empty">还没有事件记录<br>点右下角 + 添加</div>';return;}
-    body.innerHTML=list.map(ev=>evCard(ev)).join('');
-  }else{
-    const list=db.events.filter(e=>e.herb).sort((a,b)=>b.date.localeCompare(a.date));
-    if(!list.length){body.innerHTML='<div class="empty">还没有中药记录<br>添加事件时勾选"含中药调理"</div>';return;}
-    body.innerHTML=list.map(ev=>evCard(ev)).join('');
+  let list;
+  if(i===0) list=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  else list=db.events.filter(e=>e.herb).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!list.length){
+    body.innerHTML='<div class="empty">'+(i===0?'还没有事件记录<br>点右下角 + 添加':'还没有中药记录<br>添加事件时勾选"含中药调理"')+'</div>';
+    return;
   }
+  body.innerHTML=list.map(ev=>evCard(ev)).join('');
 }
 function evCard(ev){
   return '<div class="card">'
@@ -221,57 +268,105 @@ function tabPer(i){
 function calHtml(){
   const first=new Date(calY,calM,1).getDay();
   const daysIn=new Date(calY,calM+1,0).getDate();
+  // 收集所有被标记的日期
   const pmap={};
-  db.periods.forEach(p=>{
-    let s=new Date(p.start), e=new Date(p.end||p.start);
-    for(let d=new Date(s);d<=e;d.setDate(d.getDate()+1)){
-      if(d.getFullYear()===calY&&d.getMonth()===calM){
-        pmap[d.getDate()]='p';
-      }
-    }
-  });
+  db.periods.forEach(p=>p.dates.forEach(d=>pmap[d]=true));
+  const today=todayStr();
   let h='<div class="monthbar"><button onclick="moveM(-1)">‹</button><span>'
     +calY+' 年 '+(calM+1)+' 月</span><button onclick="moveM(1)">›</button></div>';
   h+='<div class="cal">'+['日','一','二','三','四','五','六'].map(w=>'<div class="wd">'+w+'</div>').join('');
   for(let i=0;i<first;i++) h+='<div class="d blank"></div>';
-  const t=today();
   for(let d=1;d<=daysIn;d++){
     const ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    h+='<div class="d '+(pmap[d]||'')+(ds===t?' today':'')+'">'+d+'</div>';
+    const cls='d'+(pmap[ds]?' p':'')+(ds===today?' today':'');
+    h+='<div class="'+cls+'" onclick="toggleDay(\''+ds+'\')">'+d+'</div>';
   }
-  h+='</div><div class="wrap" style="font-size:12px;color:#8e8e93">粉色为经期日。点右下角 + 记一次经期。</div>';
+  h+='</div>';
+  h+='<div class="hint">点击某一天即可标记/取消经期。连续多天会自动合并为一次经期。</div>';
   return h;
 }
 function moveM(n){calM+=n;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}tabPer(0);}
+
+function toggleDay(ds){
+  // 查找包含该日期的经期
+  let foundIdx=-1;
+  db.periods.forEach((p,i)=>{ if(p.dates.includes(ds)) foundIdx=i; });
+
+  if(foundIdx>=0){
+    // 取消：从该经期移除这一天
+    const p=db.periods[foundIdx];
+    p.dates=p.dates.filter(d=>d!==ds);
+    if(!p.dates.length) db.periods.splice(foundIdx,1);
+    save(); render(); return;
+  }
+
+  // 新增：查找前后相邻的经期
+  const prev=db.periods.find(p=>p.dates.includes(addDays(ds,-1)));
+  const next=db.periods.find(p=>p.dates.includes(addDays(ds,1)));
+
+  if(prev && next && prev!==next){
+    // 前后都属于不同的经期 → 合并
+    prev.dates=[...new Set([...prev.dates,...next.dates,ds])].sort();
+    db.periods=db.periods.filter(p=>p!==next);
+  } else if(prev){
+    prev.dates.push(ds); prev.dates.sort();
+  } else if(next){
+    next.dates.push(ds); next.dates.sort();
+  } else {
+    db.periods.push({id:uid(),dates:[ds],flow:'',pain:'',note:''});
+  }
+  save(); render();
+}
+
 function tlHtml(){
-  const list=db.periods.slice().sort((a,b)=>a.start.localeCompare(b.start));
-  if(!list.length) return '<div class="empty">还没有经期记录</div>';
+  const list=sortedPeriods();
+  if(!list.length) return '<div class="empty">还没有经期记录<br>去"日历"点某一天开始记</div>';
   let h='<div class="tl">';
   list.forEach((p,i)=>{
-    const dur=days(p.start,p.end||p.start)+1;
-    const gap=i?days(list[i-1].end||list[i-1].start,p.start):null;
-    h+='<div class="item"><div class="t">'+esc(p.start)+(p.end?' → '+esc(p.end):'')+'</div>'
-      +'<div class="s">持续 '+dur+' 天'
-      +(gap!=null?' · 距上次结束 '+gap+' 天':'')
-      +(p.flow?' · 量'+esc(p.flow):'')
-      +(p.pain&&p.pain!=='无'?' · 痛经'+esc(p.pain):'')
-      +(p.note?'<br>'+esc(p.note):'')+'</div></div>';
+    const s=perStart(p), e=perEnd(p);
+    const dur=p.dates.length;
+    const today=todayStr();
+    const ongoing=e>=today;
+    let line2;
+    if(ongoing){
+      line2='<span style="color:#c2185b;font-weight:600">进行中 · 已持续 '+dur+' 天</span>';
+    } else {
+      line2='持续 '+dur+' 天';
+    }
+    let gapLine='';
+    if(i>0){
+      const prevEnd=perEnd(list[i-1]);
+      const gap=diffDays(prevEnd,s);
+      gapLine='<div class="gap">距上次结束 '+gap+' 天</div>';
+    }
+    h+='<div class="item">'
+      +'<div class="t">'+fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'</div>'
+      +'<div class="s">'+line2+'</div>'
+      +gapLine
+      +(p.flow||p.pain||p.note?'<div class="s">'
+        +(p.flow?'量'+esc(p.flow)+'　':'')
+        +(p.pain&&p.pain!=='无'?'痛经'+esc(p.pain)+'　':'')
+        +(p.note?esc(p.note):'')+'</div>':'')
+      +'</div>';
   });
   h+='</div>';
   return h;
 }
 function listHtml(){
-  const list=db.periods.slice().sort((a,b)=>b.start.localeCompare(a.start));
+  const list=sortedPeriods().slice().reverse();
   if(!list.length) return '<div class="empty">还没有经期记录</div>';
-  return '<div class="wrap">'+list.map(p=>'<div class="card">'
-    +'<div class="acts"><button onclick="editPer(\''+p.id+'\')">编辑</button>'
-    +'<button class="del" onclick="delPer(\''+p.id+'\')">删除</button></div>'
-    +'<div class="date">'+esc(p.start)+(p.end?' → '+esc(p.end):'')+'</div>'
-    +'<div class="row">持续 '+days(p.start,p.end||p.start)+1+' 天</div>'
-    +(p.flow?'<span class="tag">量'+esc(p.flow)+'</span>':'')
-    +(p.pain?'<span class="tag">痛经'+esc(p.pain)+'</span>':'')
-    +(p.note?'<div class="row">'+esc(p.note)+'</div>':'')
-    +'</div>').join('')+'</div>';
+  return '<div class="wrap">'+list.map(p=>{
+    const s=perStart(p), e=perEnd(p);
+    return '<div class="card">'
+      +'<div class="acts"><button onclick="editPer(\''+p.id+'\')">编辑</button>'
+      +'<button class="del" onclick="delPer(\''+p.id+'\')">删除</button></div>'
+      +'<div class="date">'+fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'</div>'
+      +'<div class="row">持续 '+p.dates.length+' 天</div>'
+      +(p.flow?'<span class="tag">量'+esc(p.flow)+'</span>':'')
+      +(p.pain?'<span class="tag">痛经'+esc(p.pain)+'</span>':'')
+      +(p.note?'<div class="row">'+esc(p.note)+'</div>':'')
+      +'</div>';
+  }).join('')+'</div>';
 }
 
 function rSet(m){
@@ -291,7 +386,7 @@ function exp(){
   const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(b);
-  a.download='健康档案备份_'+today()+'.json';a.click();
+  a.download='健康档案备份_'+todayStr()+'.json';a.click();
 }
 function imp(e){
   const f=e.target.files[0];if(!f)return;
@@ -322,7 +417,7 @@ function openP(html){$('panel').innerHTML=html;$('mask').classList.add('on');$('
 function closeP(){$('mask').classList.remove('on');$('panel').classList.remove('on');editing=null;}
 $('mask').onclick=closeP;
 
-$('fab').onclick=()=>{ if(view==='per') perForm(); else evForm(); };
+$('fab').onclick=()=>{ evForm(); };
 
 function evForm(ev){
   editing=ev?ev.id:null;
@@ -330,7 +425,7 @@ function evForm(ev){
   const allReasons=['胃痛','经期不规律','常规体检','腹胀','反酸','头痛','失眠','疲劳','感冒','复查','其他'];
   openP('<h2>'+(ev?'编辑事件':'记录一次事件')+'</h2>'
     +'<div class="grid2">'
-    +'<div class="field"><label>日期 *</label><input type="date" id="f_date" value="'+esc(ev?ev.date:today())+'"></div>'
+    +'<div class="field"><label>日期 *</label><input type="date" id="f_date" value="'+esc(ev?ev.date:todayStr())+'"></div>'
     +'<div class="field"><label>科室</label><input id="f_dept" value="'+esc(ev?ev.dept:'')+'" placeholder="如：消化内科"></div>'
     +'</div>'
     +'<div class="field"><label>医院</label><input id="f_hosp" value="'+esc(ev?ev.hosp:'')+'" placeholder="如：某市第一人民医院"></div>'
@@ -353,7 +448,7 @@ function saveEv(){
   const r2=$('f_reason2').value.trim();
   if(r2) reasons.push(r2);
   const o={
-    id:editing||Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    id:editing||uid(),
     date:date, dept:$('f_dept').value.trim(), hosp:$('f_hosp').value.trim(),
     reasons:reasons, reason2:'', exam:$('f_exam').value.trim(),
     diag:$('f_diag').value.trim(), med:$('f_med').value.trim(),
@@ -368,33 +463,27 @@ function delEv(id){if(!confirm('删除这条记录？'))return;db.events=db.even
 
 function perForm(p){
   editing=p?p.id:null;
-  openP('<h2>'+(p?'编辑经期':'记录一次经期')+'</h2>'
-    +'<div class="grid2">'
-    +'<div class="field"><label>开始日期 *</label><input type="date" id="p_start" value="'+esc(p?p.start:today())+'"></div>'
-    +'<div class="field"><label>结束日期</label><input type="date" id="p_end" value="'+esc(p?p.end:'')+'"></div>'
-    +'</div>'
+  const s=perStart(p), e=perEnd(p);
+  openP('<h2>编辑经期细节</h2>'
+    +'<div class="row" style="color:#8e8e93;font-size:14px;margin-bottom:14px">'
+    +fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'（共 '+p.dates.length+' 天）<br>'
+    +'如需修改日期，去日历点选。</div>'
     +'<div class="field"><label>量</label><select id="p_flow">'
-    +['','少','中','多'].map(v=>'<option '+(p&&p.flow===v?'selected':'')+'>'+v+'</option>').join('')
+    +['','少','中','多'].map(v=>'<option '+(p.flow===v?'selected':'')+'>'+v+'</option>').join('')
     +'</select></div>'
     +'<div class="field"><label>痛经</label><select id="p_pain">'
-    +['无','轻','中','重'].map(v=>'<option '+(p&&p.pain===v?'selected':'')+'>'+v+'</option>').join('')
+    +['无','轻','中','重'].map(v=>'<option '+(p.pain===v?'selected':'')+'>'+v+'</option>').join('')
     +'</select></div>'
-    +'<div class="field"><label>备注（颜色、血块、情绪等）</label><textarea id="p_note" rows="3">'+esc(p?p.note:'')+'</textarea></div>'
+    +'<div class="field"><label>备注（颜色、血块、情绪等）</label><textarea id="p_note" rows="3">'+esc(p.note)+'</textarea></div>'
     +'<button class="btn" onclick="savePer()">保存</button>'
     +'<button class="btn sec" onclick="closeP()">取消</button>');
 }
 function savePer(){
-  const s=$('p_start').value;
-  if(!s){alert('请选开始日期');return;}
-  const e=$('p_end').value;
-  if(e && e<s){alert('结束日期不能早于开始日期');return;}
-  const o={
-    id:editing||Date.now().toString(36)+Math.random().toString(36).slice(2,6),
-    start:s, end:e, flow:$('p_flow').value, pain:$('p_pain').value,
-    note:$('p_note').value.trim()
-  };
-  if(editing) db.periods=db.periods.map(x=>x.id===editing?o:x);
-  else db.periods.push(o);
+  const p=db.periods.find(x=>x.id===editing);
+  if(!p){closeP();return;}
+  p.flow=$('p_flow').value;
+  p.pain=$('p_pain').value;
+  p.note=$('p_note').value.trim();
   save();closeP();render();
 }
 function editPer(id){const p=db.periods.find(x=>x.id===id);if(p)perForm(p);}
