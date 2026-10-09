@@ -98,7 +98,6 @@ border-radius:50%;background:#ff5c8a;border:2px solid #fff}
 .tl .gap{font-size:12px;color:#c2185b;background:#ffe8ee;
 display:inline-block;padding:2px 8px;border-radius:10px;margin:4px 0 0 0}
 .hint{font-size:12px;color:#8e8e93;text-align:center;padding:12px}
-#chatWrap{display:flex;flex-direction:column;height:100%}
 #chatScroll{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
 #chatBar{flex-shrink:0;background:#fff;border-top:1px solid #e5e5ea;
 padding:8px 12px;padding-bottom:8px}
@@ -123,7 +122,6 @@ border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
 .chat-input-row button{padding:0 18px;background:#0a84ff;color:#fff;border:none;
 border-radius:8px;font-size:14px;font-weight:600;flex-shrink:0}
 .chat-input-row button:active{background:#0070e0}
-/* 消息页 */
 .switch-row{display:flex;align-items:center;justify-content:space-between;
 background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;
 box-shadow:0 1px 3px rgba(0,0,0,.06)}
@@ -247,7 +245,6 @@ function fallbackCopy(text,done){
   document.body.removeChild(ta);
 }
 
-/* ====== 提醒逻辑 ====== */
 const GENERIC_REASONS=['其他','常规体检','复查'];
 function checkEventLinks(newEvent){
   if(!db.settings.remind) return;
@@ -264,7 +261,6 @@ function checkEventLinks(newEvent){
   if(!links.length) return;
   links.sort((a,b)=>b.event.date.localeCompare(a.event.date));
   const top=links[0];
-  // 避免同一条新记录重复提醒
   if(db.messages.some(m=>m.type==='link' && m.srcId===newEvent.id)) return;
   const text='你刚记录的这次「'+myReasons.join('、')+'」，和 '+top.event.date+' 那次类似'
     +'（都是「'+top.common.join('、')+'」）'
@@ -306,8 +302,15 @@ let view='home', calY, calM, editing=null, assistantTab='chat';
 
 function render(){
   const m=$('main');
-  if(view==='chat'){ m.style.overflow='hidden'; }
-  else { m.style.overflow='auto'; m.scrollTop=0; }
+  if(view==='chat'){
+    m.style.overflow='hidden';
+    m.style.display='flex';
+    m.style.flexDirection='column';
+  } else {
+    m.style.overflow='auto';
+    m.style.display='';
+    m.scrollTop=0;
+  }
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   $('fab').style.display=(view==='home'||view==='rec')?'block':'none';
   if(view==='home') rHome(m);
@@ -316,7 +319,6 @@ function render(){
   if(view==='chat') rAssistant(m);
   if(view==='set') rSet(m);
   $('sub').textContent='数据仅存本机 · '+db.events.length+' 条事件 · '+db.periods.length+' 次经期';
-  // 未读小红点
   const unread=db.messages.filter(x=>!x.read).length;
   $('navDot').classList.toggle('on', unread>0);
 }
@@ -501,10 +503,9 @@ function listHtml(){
   }).join('')+'</div>';
 }
 
-/* ============ 助手页（对话 + 消息） ============ */
 function rAssistant(m){
   const unread=db.messages.filter(x=>!x.read).length;
-  let h='<div class="seg" style="margin-top:12px">'
+  let h='<div class="seg" style="margin-top:12px;flex-shrink:0">'
     +'<button class="'+(assistantTab==='chat'?'on':'')+'" onclick="setATab(\'chat\')">对话</button>'
     +'<button class="'+(assistantTab==='msg'?'on':'')+'" onclick="setATab(\'msg\')">消息'
     +(unread?' <span class="msg-badge">'+unread+'</span>':'')
@@ -658,7 +659,6 @@ function buildSummary(question){
 
 const TOPIC_WORDS=['胃痛','胃镜','胃炎','胃','反酸','腹胀','消化','腹痛','头痛','头晕','失眠','睡眠','睡不着','疲劳','乏力','感冒','发烧','咳嗽','经期','月经','例假','生理期','痛经','中药','调理','血压','血糖','血脂','心悸','胸闷','腰痛','关节','过敏','甲状腺','激素','体检','复查'];
 
-/* ============ 消息页 ============ */
 function renderMessages(){
   const body=$('assistantBody');
   const list=db.messages.slice().sort((a,b)=>b.time.localeCompare(a.time));
@@ -684,7 +684,6 @@ function renderMessages(){
   }
   h+='</div>';
   body.innerHTML=h;
-  // 打开消息页后，全部标为已读
   if(db.messages.some(x=>!x.read)){
     db.messages.forEach(x=>x.read=true);
     save();
@@ -714,7 +713,6 @@ function goCalendar(msgId){
   render();
 }
 
-/* ============ 设置 ============ */
 function rSet(m){
   m.innerHTML='<div class="wrap">'
     +'<div class="card"><h3 style="margin-top:0">数据备份</h3>'
@@ -766,7 +764,6 @@ function clr(){
   db={events:[],periods:[],chats:[],messages:[],settings:{remind:true}};save();render();
 }
 
-/* ============ 面板 ============ */
 function openP(html){$('panel').innerHTML=html;$('mask').classList.add('on');$('panel').classList.add('on');}
 function closeP(){$('mask').classList.remove('on');$('panel').classList.remove('on');editing=null;}
 $('mask').onclick=closeP;
@@ -846,7 +843,6 @@ function delPer(id){if(!confirm('删除这次经期记录？'))return;db.periods
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render();});
 
-// 启动
 checkPeriodRemind();
 render();
 </script>
