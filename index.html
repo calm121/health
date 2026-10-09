@@ -83,8 +83,7 @@ width:36px;height:36px;font-size:18px;color:#0a84ff}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:0 12px}
 .cal .wd{text-align:center;font-size:12px;color:#8e8e93;padding:6px 0}
 .cal .d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
-font-size:14px;border-radius:50%;color:#1c1c1e;cursor:pointer;
-transition:background .15s}
+font-size:14px;border-radius:50%;color:#1c1c1e;cursor:pointer;transition:background .15s}
 .cal .d.blank{visibility:hidden;cursor:default}
 .cal .d.p{background:#ff5c8a;color:#fff;font-weight:700}
 .cal .d.today{box-shadow:inset 0 0 0 2px #0a84ff}
@@ -148,7 +147,6 @@ font-size:13px;cursor:pointer}
 .msg-card .mact .del{background:#f0f0f3;color:#8e8e93}
 .msg-badge{display:inline-block;background:#ff3b30;color:#fff;font-size:10px;
 padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle}
-/* 中药档案 */
 .herb-timeline{padding:6px 12px}
 .herb-item{position:relative;padding:0 0 18px 22px;border-left:2px solid #d9c4f0;margin-left:6px}
 .herb-item:last-child{border-left-color:transparent;padding-bottom:6px}
@@ -243,7 +241,7 @@ function toast(msg){
   setTimeout(()=>el.remove(),1400);
 }
 function copyText(text){
-  const done=()=>toast('已复制到剪贴板');
+  const done=()=>toast('已复制');
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
   } else { fallbackCopy(text,done); }
@@ -277,8 +275,7 @@ function checkEventLinks(newEvent){
   const text='你刚记录的这次「'+myReasons.join('、')+'」，和 '+top.event.date+' 那次类似'
     +'（都是「'+top.common.join('、')+'」）'
     +(top.event.diag?'，当时诊断：'+top.event.diag:'')
-    +(top.event.hosp?'，在'+top.event.hosp:'')
-    +'。';
+    +(top.event.hosp?'，在'+top.event.hosp:'')+'。';
   db.messages.push({
     id:uid(), time:nowStr(), type:'link',
     text:text, refId:top.event.id, srcId:newEvent.id, read:false
@@ -405,7 +402,6 @@ function herbHtml(){
   const list=db.events.filter(e=>e.herb).sort((a,b)=>a.date.localeCompare(b.date));
   if(!list.length) return '<div class="empty">还没有中药记录<br>添加事件时勾选"含中药调理"</div>';
   let h='';
-  // 顶部汇总
   const first=list[0].date, last=list[list.length-1].date;
   h+='<div class="herb-summary">'
     +'共 '+list.length+' 次中药相关记录<br>'
@@ -605,28 +601,25 @@ function delChat(id){
   save(); renderChat();
 }
 
+const TOPIC_WORDS=['胃痛','胃镜','胃炎','胃','反酸','腹胀','消化','腹痛','头痛','头晕','失眠','睡眠','睡不着','疲劳','乏力','感冒','发烧','咳嗽','血压','血糖','血脂','心悸','胸闷','腰痛','关节','过敏','甲状腺','激素','体检','复查','痛经'];
+
 function buildSummary(question){
-  const matched=TOPIC_WORDS.filter(w=>question.includes(w));
-  const aboutPeriod=matched.some(w=>['经期','月经','例假','生理期','痛经'].includes(w))||/经期|月经|例假|大姨妈/.test(question);
-  const aboutHerb=matched.includes('中药')||matched.includes('调理')||/中药|调理|汤药/.test(question);
-  const matchedEvents=db.events.filter(e=>{
-    const text=[(e.reasons||[]).join(' '),e.diag,e.exam,e.med,e.feel,e.dept,e.hosp,e.herbFormula||''].join(' ');
-    if(matched.length===0){ return /整体|全部|所有|综合|健康|总体/.test(question); }
-    return matched.some(w=>text.includes(w));
-  });
+  const q=question;
+  const wantPeriod=/经期|月经|例假|生理期|痛经/.test(q);
+  const wantHerb=/中药|中医|汤药|方剂|方子/.test(q);
+  const wantMed=/(吃过|吃了|用过|服用).*药/.test(q) && !wantHerb;
+  const wantAll=/整体|全部|所有|综合|总体|概况|健康状况/.test(q);
+  const hitWords=TOPIC_WORDS.filter(w=>q.includes(w)).filter(w=>!['经期','月经','例假','生理期','痛经'].includes(w)||false);
+
   const lines=[];
-  lines.push('【整理自本地健康档案，已脱敏】');
-  lines.push('');
-  lines.push('【基本情况】');
-  lines.push('女性。'+(aboutPeriod?'关注经期情况。':'')+(aboutHerb?'有中药调理记录。':''));
-  lines.push('');
   let hasContent=false;
-  if(aboutPeriod){
+
+  if(wantPeriod){
     const ps=sortedPeriods();
     if(ps.length){
       hasContent=true;
       const recent=ps.slice(-10).reverse();
-      lines.push('【经期记录】（共 '+ps.length+' 次，列出最近 '+recent.length+' 次）');
+      lines.push('【经期记录】共 '+ps.length+' 次，列出最近 '+recent.length+' 次：');
       recent.forEach((p,i)=>{
         const s=perStart(p), e=perEnd(p);
         let sLine='- '+s+(s!==e?' 至 '+e:'')+'，持续 '+p.dates.length+' 天';
@@ -650,34 +643,79 @@ function buildSummary(question){
       lines.push('');
     }
   }
-  if(matchedEvents.length){
-    hasContent=true;
-    const sorted=matchedEvents.slice().sort((a,b)=>a.date.localeCompare(b.date));
-    lines.push('【相关就诊 / 检查记录】（共 '+sorted.length+' 条）');
-    sorted.forEach(e=>{
-      let s='- '+e.date;
-      if(e.reasons && e.reasons.length) s+='，因'+e.reasons.join('、');
-      if(e.hosp || e.dept) s+='，'+'就诊某医院'+(e.dept?'（'+e.dept+'）':'');
-      if(e.exam) s+='。检查：'+e.exam.replace(/\n/g,'；');
-      if(e.diag) s+='。诊断：'+e.diag;
-      if(e.med) s+='。用药：'+e.med.replace(/\n/g,'；');
-      if(e.herbFormula) s+='。方剂：'+e.herbFormula.replace(/\n/g,'；');
-      if(e.feel) s+='。感受：'+e.feel;
-      if(e.herb) s+='（含中药调理）';
-      lines.push(s);
-    });
-    lines.push('');
+
+  if(wantHerb){
+    const herbs=db.events.filter(e=>e.herb).sort((a,b)=>a.date.localeCompare(b.date));
+    if(herbs.length){
+      hasContent=true;
+      lines.push('【中药调理记录】共 '+herbs.length+' 次：');
+      herbs.forEach(e=>{
+        let s='- '+e.date;
+        if((e.reasons||[]).length) s+='，因'+e.reasons.join('、');
+        if(e.diag) s+='，诊断：'+e.diag;
+        if(e.herbFormula) s+='，方剂：'+e.herbFormula.replace(/\n/g,'；');
+        if(e.med) s+='，西药：'+e.med.replace(/\n/g,'；');
+        if(e.feel) s+='，感受：'+e.feel;
+        lines.push(s);
+      });
+      lines.push('');
+    }
   }
-  if(!hasContent){
-    lines.push('【整体情况】');
+
+  if(wantMed && !wantHerb){
+    const meds=db.events.filter(e=>e.med && e.med.trim()).sort((a,b)=>a.date.localeCompare(b.date));
+    if(meds.length){
+      hasContent=true;
+      lines.push('【用药记录】共 '+meds.length+' 次：');
+      meds.forEach(e=>{
+        let s='- '+e.date;
+        if((e.reasons||[]).length) s+='，因'+e.reasons.join('、');
+        if(e.diag) s+='，诊断：'+e.diag;
+        s+='，用药：'+e.med.replace(/\n/g,'；');
+        lines.push(s);
+      });
+      lines.push('');
+    }
+  }
+
+  if(hitWords.length){
+    const matched=db.events.filter(e=>{
+      const t=[(e.reasons||[]).join(' '),e.diag,e.exam,e.med,e.feel,e.dept,e.hosp,e.herbFormula||''].join(' ');
+      return hitWords.some(w=>t.includes(w));
+    });
+    if(matched.length){
+      hasContent=true;
+      const sorted=matched.slice().sort((a,b)=>a.date.localeCompare(b.date));
+      lines.push('【相关就诊记录】共 '+sorted.length+' 条：');
+      sorted.forEach(e=>{
+        let s='- '+e.date;
+        if((e.reasons||[]).length) s+='，因'+e.reasons.join('、');
+        if(e.hosp||e.dept) s+='，就诊某医院'+(e.dept?'（'+e.dept+'）':'');
+        if(e.exam) s+='。检查：'+e.exam.replace(/\n/g,'；');
+        if(e.diag) s+='。诊断：'+e.diag;
+        if(e.med) s+='。用药：'+e.med.replace(/\n/g,'；');
+        if(e.herbFormula) s+='。方剂：'+e.herbFormula.replace(/\n/g,'；');
+        if(e.feel) s+='。感受：'+e.feel;
+        lines.push(s);
+      });
+      lines.push('');
+    }
+  }
+
+  if(wantAll || !hasContent){
+    const recent=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15);
+    lines.push('【整体概况】');
     lines.push('共 '+db.events.length+' 条就诊/体检记录，'+db.periods.length+' 次经期记录。');
     lines.push('');
-    if(db.events.length){
-      const recent=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+    if(recent.length){
       lines.push('【最近 '+recent.length+' 条记录】');
       recent.forEach(e=>{
-        lines.push('- '+e.date+'：'+((e.reasons||[]).join('、')||e.diag||'记录')
-          +(e.diag?'（诊断：'+e.diag+'）':''));
+        let s='- '+e.date;
+        if((e.reasons||[]).length) s+='：'+e.reasons.join('、');
+        if(e.diag) s+='（诊断：'+e.diag+'）';
+        if(e.med) s+='（用药：'+e.med.replace(/\n/g,'；')+'）';
+        if(e.herbFormula) s+='（方剂：'+e.herbFormula.replace(/\n/g,'；')+'）';
+        lines.push(s);
       });
       lines.push('');
     }
@@ -685,16 +723,12 @@ function buildSummary(question){
       const ps=sortedPeriods();
       lines.push('【经期汇总】');
       lines.push('共记录 '+ps.length+' 次。最近一次开始于 '+perStart(ps.slice(-1)[0])+'。');
-      lines.push('');
     }
   }
-  lines.push('---');
+
   lines.push('请分析：'+question);
-  lines.push('（以上信息已去除姓名、具体医院名称等身份标识，如仍需删除其他内容，请自行编辑后再发送。）');
   return lines.join('\n');
 }
-
-const TOPIC_WORDS=['胃痛','胃镜','胃炎','胃','反酸','腹胀','消化','腹痛','头痛','头晕','失眠','睡眠','睡不着','疲劳','乏力','感冒','发烧','咳嗽','经期','月经','例假','生理期','痛经','中药','调理','血压','血糖','血脂','心悸','胸闷','腰痛','关节','过敏','甲状腺','激素','体检','复查'];
 
 function renderMessages(){
   const body=$('assistantBody');
