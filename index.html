@@ -148,6 +148,21 @@ font-size:13px;cursor:pointer}
 .msg-card .mact .del{background:#f0f0f3;color:#8e8e93}
 .msg-badge{display:inline-block;background:#ff3b30;color:#fff;font-size:10px;
 padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle}
+/* 中药档案 */
+.herb-timeline{padding:6px 12px}
+.herb-item{position:relative;padding:0 0 18px 22px;border-left:2px solid #d9c4f0;margin-left:6px}
+.herb-item:last-child{border-left-color:transparent;padding-bottom:6px}
+.herb-item::before{content:'';position:absolute;left:-7px;top:2px;width:12px;height:12px;
+border-radius:50%;background:#9b59d0;border:2px solid #fff}
+.herb-item .ht{font-size:14px;font-weight:600;color:#5a2a8c}
+.herb-item .hd{font-size:12px;color:#8e8e93;margin-top:3px;line-height:1.6}
+.herb-item .hf{margin-top:6px;padding:8px 10px;background:#f9f3ff;border-radius:8px;
+font-size:13px;color:#4a1f75;line-height:1.6;white-space:pre-wrap}
+.herb-item .hact{margin-top:8px;display:flex;gap:14px;font-size:12px}
+.herb-item .hact button{background:none;border:none;color:#8e8e93;padding:2px}
+.herb-item .hact button.del{color:#ff3b30}
+.herb-summary{background:#f9f3ff;border-radius:12px;padding:14px;margin:12px;
+color:#4a1f75;font-size:13px;line-height:1.7}
 </style>
 </head>
 <body>
@@ -227,14 +242,11 @@ function toast(msg){
   document.body.appendChild(el);
   setTimeout(()=>el.remove(),1400);
 }
-
 function copyText(text){
   const done=()=>toast('已复制到剪贴板');
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
-  } else {
-    fallbackCopy(text,done);
-  }
+  } else { fallbackCopy(text,done); }
 }
 function fallbackCopy(text,done){
   const ta=document.createElement('textarea');
@@ -272,7 +284,6 @@ function checkEventLinks(newEvent){
     text:text, refId:top.event.id, srcId:newEvent.id, read:false
   });
 }
-
 function checkPeriodRemind(){
   if(!db.settings.remind) return;
   const ps=sortedPeriods();
@@ -298,18 +309,14 @@ function checkPeriodRemind(){
   save();
 }
 
-let view='home', calY, calM, editing=null, assistantTab='chat';
+let view='home', calY, calM, editing=null, assistantTab='chat', recTab=0;
 
 function render(){
   const m=$('main');
   if(view==='chat'){
-    m.style.overflow='hidden';
-    m.style.display='flex';
-    m.style.flexDirection='column';
+    m.style.overflow='hidden'; m.style.display='flex'; m.style.flexDirection='column';
   } else {
-    m.style.overflow='auto';
-    m.style.display='';
-    m.scrollTop=0;
+    m.style.overflow='auto'; m.style.display=''; m.scrollTop=0;
   }
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
   $('fab').style.display=(view==='home'||view==='rec')?'block':'none';
@@ -363,21 +370,21 @@ function rHome(m){
 
 function rRec(m){
   let h='<div class="seg" style="margin-top:12px">'
-    +'<button class="on" onclick="tabRec(0)">主档案</button>'
-    +'<button onclick="tabRec(1)">中药</button></div><div id="recBody" class="wrap"></div>';
-  m.innerHTML=h; tabRec(0);
+    +'<button class="'+(recTab===0?'on':'')+'" onclick="tabRec(0)">主档案</button>'
+    +'<button class="'+(recTab===1?'on':'')+'" onclick="tabRec(1)">中药</button></div><div id="recBody"></div>';
+  m.innerHTML=h; tabRec(recTab);
 }
 function tabRec(i){
+  recTab=i;
   document.querySelectorAll('.seg button').forEach((b,j)=>b.classList.toggle('on',i===j));
   const body=$('recBody');
-  let list;
-  if(i===0) list=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date));
-  else list=db.events.filter(e=>e.herb).sort((a,b)=>b.date.localeCompare(a.date));
-  if(!list.length){
-    body.innerHTML='<div class="empty">'+(i===0?'还没有事件记录<br>点右下角 + 添加':'还没有中药记录<br>添加事件时勾选"含中药调理"')+'</div>';
-    return;
+  if(i===0){
+    const list=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date));
+    if(!list.length){body.innerHTML='<div class="empty">还没有事件记录<br>点右下角 + 添加</div>';return;}
+    body.innerHTML='<div class="wrap">'+list.map(ev=>evCard(ev)).join('')+'</div>';
+  } else {
+    body.innerHTML=herbHtml();
   }
-  body.innerHTML=list.map(ev=>evCard(ev)).join('');
 }
 function evCard(ev){
   return '<div class="card">'
@@ -390,8 +397,45 @@ function evCard(ev){
     +(ev.herb?'<span class="tag" style="background:#f3e8ff;color:#7c3aed">中药</span>':'')
     +(ev.exam?'<div class="row"><b>检查：</b>'+esc(ev.exam).replace(/\n/g,'<br>')+'</div>':'')
     +(ev.med?'<div class="row"><b>用药：</b>'+esc(ev.med).replace(/\n/g,'<br>')+'</div>':'')
+    +(ev.herbFormula?'<div class="row"><b>方剂：</b>'+esc(ev.herbFormula).replace(/\n/g,'<br>')+'</div>':'')
     +(ev.feel?'<div class="row"><b>感受：</b>'+esc(ev.feel).replace(/\n/g,'<br>')+'</div>':'')
     +'</div>';
+}
+function herbHtml(){
+  const list=db.events.filter(e=>e.herb).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!list.length) return '<div class="empty">还没有中药记录<br>添加事件时勾选"含中药调理"</div>';
+  let h='';
+  // 顶部汇总
+  const first=list[0].date, last=list[list.length-1].date;
+  h+='<div class="herb-summary">'
+    +'共 '+list.length+' 次中药相关记录<br>'
+    +'时间跨度：'+fmtDate(first)+' 至 '+fmtDate(last)+'（共 '+diffDays(first,last)+' 天）'
+    +'</div>';
+  h+='<div class="herb-timeline">';
+  list.forEach((e,i)=>{
+    let interval='';
+    if(i>0){
+      const gap=diffDays(list[i-1].date, e.date);
+      interval='距上次 '+gap+' 天';
+    }
+    h+='<div class="herb-item">'
+      +'<div class="ht">'+fmtDate(e.date)+(interval?'（'+interval+'）':'')+'</div>'
+      +'<div class="hd">'
+      +(e.hosp?esc(e.hosp):'')
+      +(e.dept?' · '+esc(e.dept):'')
+      +((e.reasons||[]).length?'<br>原因：'+esc(e.reasons.join('、')):'')
+      +(e.diag?'<br>诊断：'+esc(e.diag):'')
+      +'</div>'
+      +(e.herbFormula?'<div class="hf"><b>方剂：</b>'+esc(e.herbFormula).replace(/\n/g,'<br>')+'</div>':'')
+      +(e.feel?'<div class="hd" style="margin-top:6px">感受：'+esc(e.feel)+'</div>':'')
+      +'<div class="hact">'
+      +'<button onclick="editEv(\''+e.id+'\')">编辑</button>'
+      +'<button class="del" onclick="delEv(\''+e.id+'\')">删除</button>'
+      +'</div>'
+      +'</div>';
+  });
+  h+='</div>';
+  return h;
 }
 
 function rPer(m){
@@ -515,10 +559,7 @@ function rAssistant(m){
   if(assistantTab==='chat') renderChat();
   else renderMessages();
 }
-function setATab(t){
-  assistantTab=t;
-  rAssistant($('main'));
-}
+function setATab(t){ assistantTab=t; rAssistant($('main')); }
 
 function renderChat(){
   const body=$('assistantBody');
@@ -538,7 +579,7 @@ function renderChat(){
   body.innerHTML='<div id="chatScroll">'+history+'</div>'
     +'<div id="chatBar">'
     +'<div>'
-    +['我最近经期怎么样？','我以前胃不舒服过吗？','我吃过哪些药？','我整体健康状况如何？'].map(q=>'<span class="qq" onclick="ask(\''+q+'\')">'+q+'</span>').join('')
+    +['我最近经期怎么样？','我以前胃不舒服过吗？','我吃过哪些药？','我吃过哪些中药？','我整体健康状况如何？'].map(q=>'<span class="qq" onclick="ask(\''+q+'\')">'+q+'</span>').join('')
     +'</div>'
     +'<div class="chat-input-row">'
     +'<input id="chatInput" placeholder="输入你的问题…" onkeydown="if(event.key===\'Enter\')ask()">'
@@ -557,10 +598,7 @@ function ask(preset){
   save();
   renderChat();
 }
-function copyById(id){
-  const c=db.chats.find(x=>x.id===id);
-  if(c) copyText(c.summary);
-}
+function copyById(id){ const c=db.chats.find(x=>x.id===id); if(c) copyText(c.summary); }
 function delChat(id){
   if(!confirm('删除这条对话？'))return;
   db.chats=db.chats.filter(x=>x.id!==id);
@@ -572,10 +610,8 @@ function buildSummary(question){
   const aboutPeriod=matched.some(w=>['经期','月经','例假','生理期','痛经'].includes(w))||/经期|月经|例假|大姨妈/.test(question);
   const aboutHerb=matched.includes('中药')||matched.includes('调理')||/中药|调理|汤药/.test(question);
   const matchedEvents=db.events.filter(e=>{
-    const text=[(e.reasons||[]).join(' '),e.diag,e.exam,e.med,e.feel,e.dept,e.hosp].join(' ');
-    if(matched.length===0){
-      return /整体|全部|所有|综合|健康|总体/.test(question);
-    }
+    const text=[(e.reasons||[]).join(' '),e.diag,e.exam,e.med,e.feel,e.dept,e.hosp,e.herbFormula||''].join(' ');
+    if(matched.length===0){ return /整体|全部|所有|综合|健康|总体/.test(question); }
     return matched.some(w=>text.includes(w));
   });
   const lines=[];
@@ -625,6 +661,7 @@ function buildSummary(question){
       if(e.exam) s+='。检查：'+e.exam.replace(/\n/g,'；');
       if(e.diag) s+='。诊断：'+e.diag;
       if(e.med) s+='。用药：'+e.med.replace(/\n/g,'；');
+      if(e.herbFormula) s+='。方剂：'+e.herbFormula.replace(/\n/g,'；');
       if(e.feel) s+='。感受：'+e.feel;
       if(e.herb) s+='（含中药调理）';
       lines.push(s);
@@ -691,15 +728,8 @@ function renderMessages(){
       $('navDot').classList.toggle('on',u>0);},100);
   }
 }
-function toggleRemind(on){
-  db.settings.remind=on;
-  save();
-  toast(on?'已开启主动提醒':'已关闭主动提醒');
-}
-function delMsg(id){
-  db.messages=db.messages.filter(x=>x.id!==id);
-  save(); renderMessages();
-}
+function toggleRemind(on){ db.settings.remind=on; save(); toast(on?'已开启主动提醒':'已关闭主动提醒'); }
+function delMsg(id){ db.messages=db.messages.filter(x=>x.id!==id); save(); renderMessages(); }
 function jumpTo(refId,msgId){
   const ev=db.events.find(x=>x.id===refId);
   if(!ev){toast('找不到这条记录');return;}
@@ -785,9 +815,10 @@ function evForm(ev){
     +'<div class="field"><label>补充原因（自由写）</label><input id="f_reason2" value="'+esc(ev?ev.reason2:'')+'" placeholder="不在上面选项里的，写这里"></div>'
     +'<div class="field"><label>检查项目与结果</label><textarea id="f_exam" rows="3">'+esc(ev?ev.exam:'')+'</textarea></div>'
     +'<div class="field"><label>诊断</label><input id="f_diag" value="'+esc(ev?ev.diag:'')+'" placeholder="如：慢性胃炎"></div>'
-    +'<div class="field"><label>用药</label><textarea id="f_med" rows="2">'+esc(ev?ev.med:'')+'</textarea></div>'
+    +'<div class="field"><label>用药（西药）</label><textarea id="f_med" rows="2">'+esc(ev?ev.med:'')+'</textarea></div>'
     +'<div class="field"><label>我的感受</label><textarea id="f_feel" rows="2">'+esc(ev?ev.feel:'')+'</textarea></div>'
     +'<div class="field"><label><input type="checkbox" id="f_herb" '+(ev&&ev.herb?'checked':'')+' style="width:auto;margin-right:6px">含中药调理</label></div>'
+    +'<div class="field"><label>中药方剂（勾选中药时填）</label><textarea id="f_herbformula" rows="2" placeholder="如：柴胡桂枝汤加减，7剂">'+esc(ev?ev.herbFormula||'':'')+'</textarea></div>'
     +'<button class="btn" onclick="saveEv()">保存</button>'
     +'<button class="btn sec" onclick="closeP()">取消</button>');
 }
@@ -803,7 +834,8 @@ function saveEv(){
     date:date, dept:$('f_dept').value.trim(), hosp:$('f_hosp').value.trim(),
     reasons:reasons, reason2:'', exam:$('f_exam').value.trim(),
     diag:$('f_diag').value.trim(), med:$('f_med').value.trim(),
-    feel:$('f_feel').value.trim(), herb:$('f_herb').checked
+    feel:$('f_feel').value.trim(), herb:$('f_herb').checked,
+    herbFormula:$('f_herbformula').value.trim()
   };
   if(editing) db.events=db.events.map(x=>x.id===editing?o:x);
   else db.events.push(o);
@@ -811,7 +843,11 @@ function saveEv(){
   save();closeP();render();
 }
 function editEv(id){const ev=db.events.find(x=>x.id===id);if(ev)evForm(ev);}
-function delEv(id){if(!confirm('删除这条记录？'))return;db.events=db.events.filter(x=>x.id!==id);save();render();}
+function delEv(id){
+  if(!confirm('删除这条记录？'))return;
+  db.events=db.events.filter(x=>x.id!==id);
+  save();render();
+}
 
 function perForm(p){
   editing=p?p.id:null;
