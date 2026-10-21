@@ -73,6 +73,7 @@ textarea{resize:vertical}
 .btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:16px;
 font-weight:600;background:#0a84ff;color:#fff;margin-top:6px}
 .btn.sec{background:#f0f0f3;color:#1c1c1e;margin-top:8px}
+.btn:disabled{opacity:.6}
 .chip{display:inline-block;padding:7px 12px;border-radius:18px;background:#f0f0f3;
 font-size:13px;color:#3a3a3c;margin:0 6px 6px 0;cursor:pointer;border:1px solid transparent}
 .chip.on{background:#eaf3ff;color:#0a84ff;border-color:#0a84ff}
@@ -161,6 +162,22 @@ font-size:13px;color:#4a1f75;line-height:1.6;white-space:pre-wrap}
 .herb-item .hact button.del{color:#ff3b30}
 .herb-summary{background:#f9f3ff;border-radius:12px;padding:14px;margin:12px;
 color:#4a1f75;font-size:13px;line-height:1.7}
+/* 图片 */
+.img-previews{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.img-thumb{position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;
+background:#f0f0f3;flex-shrink:0}
+.img-thumb img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block}
+.img-thumb .rm{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;
+background:rgba(0,0,0,.65);color:#fff;border:none;font-size:14px;line-height:1;cursor:pointer;padding:0}
+.card-img{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.card-img img{width:70px;height:70px;object-fit:cover;border-radius:6px;cursor:pointer;background:#f0f0f3}
+#imgViewer{position:fixed;inset:0;background:rgba(0,0,0,.94);display:none;z-index:100;
+align-items:center;justify-content:center;padding:16px}
+#imgViewer.on{display:flex}
+#imgViewer img{max-width:100%;max-height:100%;object-fit:contain}
+#imgViewer .close{position:absolute;top:14px;right:14px;color:#fff;font-size:32px;
+background:rgba(0,0,0,.5);border:none;cursor:pointer;width:44px;height:44px;border-radius:50%}
+.ocr-tip{font-size:11px;color:#8e8e93;margin-top:6px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -181,6 +198,7 @@ color:#4a1f75;font-size:13px;line-height:1.7}
 <button id="fab">+</button>
 <div id="mask"></div>
 <div id="panel"></div>
+<div id="imgViewer" onclick="closeViewer(event)"><button class="close" onclick="closeViewer(event)">×</button><img id="imgViewerImg" src=""></div>
 
 <script>
 const K='health_v1';
@@ -204,7 +222,12 @@ if(db.periods && db.periods.length && db.periods[0].start !== undefined){
 
 const $=id=>document.getElementById(id);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function save(){localStorage.setItem(K,JSON.stringify(db));}
+function save(){
+  try{ localStorage.setItem(K,JSON.stringify(db)); }
+  catch(e){
+    alert('存储空间已满。图片较多时可能超出浏览器上限，建议先导出备份，再删除一些旧图片。');
+  }
+}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function todayStr(){
   const d=new Date();
@@ -307,6 +330,7 @@ function checkPeriodRemind(){
 }
 
 let view='home', calY, calM, editing=null, assistantTab='chat', recTab=0;
+let editingImages=[];
 
 function render(){
   const m=$('main');
@@ -359,7 +383,9 @@ function rHome(m){
   list.forEach(e=>{
     h+='<div class="row" style="border-top:1px solid #f0f0f3;padding-top:8px">'
       +'<b>'+esc(e.date)+'</b> · '+esc((e.reasons||[]).join('、')||e.diag||'记录')
-      +(e.hosp?' <span style="color:#8e8e93">'+esc(e.hosp)+'</span>':'')+'</div>';
+      +(e.hosp?' <span style="color:#8e8e93">'+esc(e.hosp)+'</span>':'')
+      +(e.images&&e.images.length?' <span style="color:#8e8e93">📎'+e.images.length+'</span>':'')
+      +'</div>';
   });
   h+='</div></div>';
   m.innerHTML=h;
@@ -396,6 +422,9 @@ function evCard(ev){
     +(ev.med?'<div class="row"><b>用药：</b>'+esc(ev.med).replace(/\n/g,'<br>')+'</div>':'')
     +(ev.herbFormula?'<div class="row"><b>方剂：</b>'+esc(ev.herbFormula).replace(/\n/g,'<br>')+'</div>':'')
     +(ev.feel?'<div class="row"><b>感受：</b>'+esc(ev.feel).replace(/\n/g,'<br>')+'</div>':'')
+    +(ev.images&&ev.images.length?'<div class="card-img">'
+      +ev.images.map((src,i)=>'<img src="'+src+'" onclick="viewSaved(\''+ev.id+'\','+i+')">').join('')
+      +'</div>':'')
     +'</div>';
 }
 function herbHtml(){
@@ -785,10 +814,17 @@ function rSet(m){
     +'<button class="btn sec" onclick="document.getElementById(\'imp\').click()">导入备份文件</button>'
     +'<input type="file" id="imp" accept=".json" style="display:none">'
     +'</div>'
+    +'<div class="card"><h3 style="margin-top:0">存储占用</h3>'
+    +'<div class="row" id="usageInfo" style="color:#8e8e93;font-size:13px">计算中…</div>'
+    +'</div>'
     +'<div class="card"><h3 style="margin-top:0">危险操作</h3>'
     +'<button class="btn sec" style="color:#ff3b30" onclick="clr()">清空全部数据</button>'
     +'</div></div>';
   $('imp').onchange=imp;
+  const size=JSON.stringify(db).length;
+  const mb=(size/1024/1024).toFixed(2);
+  const imgCount=db.events.reduce((a,e)=>a+((e.images&&e.images.length)||0),0);
+  $('usageInfo').innerHTML='已用约 '+mb+' MB（浏览器上限约 5 MB）<br>共 '+imgCount+' 张图片';
 }
 function exp(){
   const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
@@ -829,12 +865,13 @@ function clr(){
 }
 
 function openP(html){$('panel').innerHTML=html;$('mask').classList.add('on');$('panel').classList.add('on');}
-function closeP(){$('mask').classList.remove('on');$('panel').classList.remove('on');editing=null;}
+function closeP(){$('mask').classList.remove('on');$('panel').classList.remove('on');editing=null;editingImages=[];}
 $('mask').onclick=closeP;
 $('fab').onclick=()=>{ evForm(); };
 
 function evForm(ev){
   editing=ev?ev.id:null;
+  editingImages = ev && ev.images ? ev.images.slice() : [];
   const reasons=ev?ev.reasons||[]:[];
   const allReasons=['胃痛','经期不规律','常规体检','腹胀','反酸','头痛','失眠','疲劳','感冒','复查','其他'];
   openP('<h2>'+(ev?'编辑事件':'记录一次事件')+'</h2>'
@@ -847,6 +884,13 @@ function evForm(ev){
     +allReasons.map(r=>'<span class="chip'+(reasons.includes(r)?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+r+'</span>').join('')
     +'</div></div>'
     +'<div class="field"><label>补充原因（自由写）</label><input id="f_reason2" value="'+esc(ev?ev.reason2:'')+'" placeholder="不在上面选项里的，写这里"></div>'
+    +'<div class="field"><label>报告图片（拍照或从相册选）</label>'
+    +'<div id="imgPreviews" class="img-previews"></div>'
+    +'<input type="file" id="f_img" accept="image/*" multiple style="display:none" onchange="onPickImages(event)">'
+    +'<button type="button" class="btn sec" onclick="document.getElementById(\'f_img\').click()">+ 添加图片</button>'
+    +'<button type="button" class="btn sec" id="ocrBtn" onclick="runOCR()" style="display:none">识别图片文字</button>'
+    +'<div class="ocr-tip">提示：识别为实验功能，首次需下载语言包（约 20MB），识别结果会自动填入下面的"检查项目与结果"，请核对后再保存。</div>'
+    +'</div>'
     +'<div class="field"><label>检查项目与结果</label><textarea id="f_exam" rows="3">'+esc(ev?ev.exam:'')+'</textarea></div>'
     +'<div class="field"><label>诊断</label><input id="f_diag" value="'+esc(ev?ev.diag:'')+'" placeholder="如：慢性胃炎"></div>'
     +'<div class="field"><label>用药（西药）</label><textarea id="f_med" rows="2">'+esc(ev?ev.med:'')+'</textarea></div>'
@@ -855,6 +899,110 @@ function evForm(ev){
     +'<div class="field"><label>中药方剂（勾选中药时填）</label><textarea id="f_herbformula" rows="2" placeholder="如：柴胡桂枝汤加减，7剂">'+esc(ev?ev.herbFormula||'':'')+'</textarea></div>'
     +'<button class="btn" onclick="saveEv()">保存</button>'
     +'<button class="btn sec" onclick="closeP()">取消</button>');
+  renderImgPreviews();
+}
+function renderImgPreviews(){
+  const box=$('imgPreviews');
+  if(!box) return;
+  box.innerHTML=editingImages.map((src,i)=>
+    '<div class="img-thumb"><img src="'+src+'" onclick="viewIdx('+i+')">'
+    +'<button type="button" class="rm" onclick="rmImg('+i+')">×</button></div>').join('');
+  const btn=$('ocrBtn');
+  if(btn) btn.style.display=editingImages.length?'block':'none';
+}
+function rmImg(i){
+  editingImages.splice(i,1);
+  renderImgPreviews();
+}
+function viewIdx(i){
+  $('imgViewerImg').src=editingImages[i];
+  $('imgViewer').classList.add('on');
+}
+function viewSaved(evId,i){
+  const ev=db.events.find(x=>x.id===evId);
+  if(ev && ev.images && ev.images[i]){
+    $('imgViewerImg').src=ev.images[i];
+    $('imgViewer').classList.add('on');
+  }
+}
+function closeViewer(e){
+  if(e && e.target && e.target.tagName==='IMG' && e.type!=='click') return;
+  if(e && e.target && e.target.tagName==='IMG') return;
+  $('imgViewer').classList.remove('on');
+}
+$('imgViewer').addEventListener('click',function(e){
+  if(e.target.tagName!=='IMG') $('imgViewer').classList.remove('on');
+});
+
+function compressImage(file){
+  return new Promise((resolve)=>{
+    const reader=new FileReader();
+    reader.onload=(e)=>{
+      const img=new Image();
+      img.onload=()=>{
+        let w=img.width, h=img.height;
+        const max=1000;
+        if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
+        else if(h>max){ w=Math.round(w*max/h); h=max; }
+        const c=document.createElement('canvas');
+        c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(c.toDataURL('image/jpeg',0.7));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function onPickImages(e){
+  const files=[...e.target.files];
+  if(!files.length) return;
+  toast('处理图片中…');
+  for(const f of files){
+    try{
+      const b64=await compressImage(f);
+      editingImages.push(b64);
+    }catch(err){}
+  }
+  e.target.value='';
+  renderImgPreviews();
+}
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=src; s.onload=resolve; s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+async function runOCR(){
+  if(!editingImages.length) return;
+  const btn=$('ocrBtn');
+  const old=btn.textContent;
+  btn.disabled=true;
+  btn.textContent='正在加载识别引擎（首次较慢）…';
+  try{
+    if(!window.Tesseract){
+      await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    }
+    btn.textContent='识别中…（请耐心等待）';
+    const worker=await Tesseract.createWorker('chi_sim+eng');
+    let all='';
+    for(const src of editingImages){
+      const { data: { text } }=await worker.recognize(src);
+      all+=(all?'\n---\n':'')+text.trim();
+    }
+    await worker.terminate();
+    const box=$('f_exam');
+    if(box){
+      box.value=(box.value?box.value+'\n':'')+all;
+    }
+    btn.textContent='识别完成，已填入"检查结果"';
+    btn.disabled=false;
+    setTimeout(()=>{btn.textContent=old;},2000);
+  }catch(err){
+    btn.textContent='识别失败，请重试';
+    btn.disabled=false;
+  }
 }
 function saveEv(){
   const date=$('f_date').value;
@@ -869,7 +1017,8 @@ function saveEv(){
     reasons:reasons, reason2:'', exam:$('f_exam').value.trim(),
     diag:$('f_diag').value.trim(), med:$('f_med').value.trim(),
     feel:$('f_feel').value.trim(), herb:$('f_herb').checked,
-    herbFormula:$('f_herbformula').value.trim()
+    herbFormula:$('f_herbformula').value.trim(),
+    images:editingImages.slice()
   };
   if(editing) db.events=db.events.map(x=>x.id===editing?o:x);
   else db.events.push(o);
