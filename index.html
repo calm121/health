@@ -526,9 +526,13 @@ function rBody(m){
     h += '<div class="card" style="padding:0">';
     list.forEach((r, i) => {
       const bmi = (r.weight / ((r.height/100)**2)).toFixed(1);
-      h += '<div style="padding:14px;border-bottom:'+(i<list.length-1?'1px solid #f5f5f7':'none')+';display:flex;justify-content:space-between;font-size:14px">'
+      h += '<div style="padding:14px;border-bottom:'+(i<list.length-1?'1px solid #f5f5f7':'none')+';display:flex;justify-content:space-between;align-items:center;font-size:14px">'
         + '<div style="color:#8e8e93">'+esc(r.date)+'</div>'
-        + '<div><b>'+r.weight+'</b> kg (BMI '+bmi+')</div></div>';
+        + '<div style="display:flex;align-items:center;gap:12px">'
+        +   '<div><b>'+r.weight+'</b> kg (BMI '+bmi+')</div>'
+        +   '<button onclick="delBody(\''+r.id+'\')" style="background:none;border:none;color:#ff3b30;font-size:13px;cursor:pointer;padding:0">删除</button>'
+        + '</div>'
+        + '</div>';
     });
     h += '</div>';
   }
@@ -894,6 +898,13 @@ function saveBody(){
   if(!d || !h || !w) { alert('请完整填写'); return; }
   db.bodyRecords.push({ id:uid(), date:d, height:h, weight:w });
   saveDB(); closeP(); render();
+}
+
+function delBody(id) {
+  if(!confirm('确定删除这条身高体重记录吗？')) return;
+  db.bodyRecords = db.bodyRecords.filter(x => x.id !== id);
+  saveDB();
+  render();
 }
 
 function evForm(ev){
