@@ -162,7 +162,6 @@ font-size:13px;color:#4a1f75;line-height:1.6;white-space:pre-wrap}
 .herb-item .hact button.del{color:#ff3b30}
 .herb-summary{background:#f9f3ff;border-radius:12px;padding:14px;margin:12px;
 color:#4a1f75;font-size:13px;line-height:1.7}
-/* 图片 */
 .img-previews{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .img-thumb{position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;
 background:#f0f0f3;flex-shrink:0}
@@ -177,8 +176,6 @@ align-items:center;justify-content:center;padding:16px}
 #imgViewer img{max-width:100%;max-height:100%;object-fit:contain}
 #imgViewer .close{position:absolute;top:14px;right:14px;color:#fff;font-size:32px;
 background:rgba(0,0,0,.5);border:none;cursor:pointer;width:44px;height:44px;border-radius:50%}
-
-/* 折叠反推 */
 .infer-box{margin-top:8px;background:#fffbef;border:1px solid #ffebc2;border-radius:8px;padding:8px 10px}
 .infer-box summary{cursor:pointer;font-size:13px;font-weight:600;color:#c27c00;outline:none;display:flex;align-items:center;gap:4px}
 .infer-box summary::-webkit-details-marker{display:none}
@@ -207,8 +204,7 @@ background:rgba(0,0,0,.5);border:none;cursor:pointer;width:44px;height:44px;bord
 <div id="imgViewer"><button class="close" onclick="closeViewer()">×</button><img id="imgViewerImg" src=""></div>
 
 <script>
-// ======= 存储引擎 =======
-let db = {events:[],periods:[],chats:[],messages:[],settings:{remind:true}};
+let db = {events:[],periods:[],chats:[],messages:[],settings:{remind:true, periodRemindDays:90}};
 
 function initDB(){
   return new Promise((resolve, reject) => {
@@ -235,6 +231,7 @@ function initDB(){
         if(!db.chats) db.chats = [];
         if(!db.messages) db.messages = [];
         if(!db.settings) db.settings = {remind:true};
+        if(db.settings.periodRemindDays === undefined) db.settings.periodRemindDays = 90; // 默认90天
         resolve();
       };
       getReq.onerror = () => reject(getReq.error);
@@ -242,7 +239,6 @@ function initDB(){
     req.onerror = () => reject(req.error);
   });
 }
-
 function saveDB(){
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('HealthDB', 1);
@@ -287,29 +283,114 @@ function perStart(p){return p.dates.slice().sort()[0];}
 function perEnd(p){return p.dates.slice().sort().slice(-1)[0];}
 function sortedPeriods(){return db.periods.slice().sort((a,b)=>perStart(a).localeCompare(perStart(b)));}
 
-function toast(msg){
-  const el=document.createElement('div');
-  el.textContent=msg;
-  el.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.82);color:#fff;padding:12px 22px;border-radius:10px;z-index:999;font-size:14px;pointer-events:none';
-  document.body.appendChild(el);
-  setTimeout(()=>el.remove(),1400);
-}
-function copyText(text){
-  const done=()=>toast('已复制');
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
-  } else { fallbackCopy(text,done); }
-}
-function fallbackCopy(text,done){
-  const ta=document.createElement('textarea');
-  ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
-  document.body.appendChild(ta);
-  ta.focus(); ta.select();
-  try{document.execCommand('copy');done();}catch(e){toast('复制失败，请长按选中');}
-  document.body.removeChild(ta);
+// ======== 手机系统通知引擎 ========
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) {
+    toast('您的浏览器不支持系统通知');
+    return false;
+  }
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "denied") {
+    toast('通知权限已被拒绝，请在系统设置中开启');
+    return false;
+  }
+  const perm = await Notification.requestPermission();
+  return perm === "granted";
 }
 
-// ======= 本地反推逻辑 =======
+function sendSystemNotification(title, body, tag) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    try {
+      const n = new Notification(title, {
+        body: body,
+        icon: "icon-192.png",
+        badge: "icon-192.png",
+        tag: tag || "health-reminder",
+        renotify: true
+      });
+      n.onclick = function() {
+        window.focus();
+        this.close();
+      };
+    } catch(e) {}
+  }
+}
+
+// 全局检查提醒逻辑
+const GENERIC_REASONS=['其他','常规体检','复查'];
+function checkEventLinks(newEvent){
+  if(!db.settings.remind) return;
+  if(!newEvent.reasons || !newEvent.reasons.length) return;
+  const myReasons=newEvent.reasons.filter(r=>!GENERIC_REASONS.includes(r));
+  if(!myReasons.length) return;
+  const links=[];
+  db.events.forEach(e=>{
+    if(e.id===newEvent.id) return;
+    if(!e.reasons || !e.reasons.length) return;
+    const common=e.reasons.filter(r=>myReasons.includes(r));
+    if(common.length>0) links.push({event:e, common:common});
+  });
+  if(!links.length) return;
+  links.sort((a,b)=>b.event.date.localeCompare(a.event.date));
+  const top=links[0];
+  if(db.messages.some(m=>m.type==='link' && m.srcId===newEvent.id)) return;
+  const text='你刚记录的这次「'+myReasons.join('、')+'」，和 '+top.event.date+' 那次类似'
+    +'（都是「'+top.common.join('、')+'」）'
+    +(top.event.diag?'，当时诊断：'+top.event.diag:'')
+    +(top.event.hosp?'，在'+top.event.hosp:'')+'。';
+  db.messages.push({
+    id:uid(), time:nowStr(), type:'link',
+    text:text, refId:top.event.id, srcId:newEvent.id, read:false
+  });
+}
+
+function checkPeriodRemind() {
+  if(!db.settings.remind) return;
+  const ps=sortedPeriods();
+  if(ps.length<1) return;
+  const last=ps[ps.length-1];
+  const lastEnd=perEnd(last);
+  const today=todayStr();
+  const days=diffDays(lastEnd,today);
+  
+  // 使用用户自己设置的间隔天数
+  const threshold = db.settings.periodRemindDays || 90;
+  
+  if(days<threshold) return;
+  if(db.messages.some(m=>m.type==='period' && m.refId===last.id)) return;
+
+  const msgText = '距离上次经期结束已经 '+days+' 天，达到了你设置的提醒间隔（'+threshold+'天）。最近有来吗？';
+  
+  // 存入消息中心
+  db.messages.push({
+    id:uid(), time:nowStr(), type:'period',
+    text: msgText + '有的话去日历点一下就好。',
+    refId:last.id, read:false
+  });
+  saveDB();
+
+  // 弹出手机系统通知
+  sendSystemNotification('🌸 经期提醒', msgText, 'period-remind-'+last.id);
+  
+  // 刷新页面小红点
+  const unread = db.messages.filter(x=>!x.read).length;
+  $('navDot').classList.toggle('on', unread>0);
+}
+
+// 每隔 1 小时在后台悄悄检查一次
+setInterval(() => {
+  if (db.settings.remind) checkPeriodRemind();
+}, 60 * 60 * 1000);
+
+// 页面从后台切回前台时检查
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    if (db.settings.remind) checkPeriodRemind();
+  }
+});
+
+// ======== 本地反推逻辑 ========
 function inferDiagnosis(medText, herbText) {
   let text = (medText || '') + ' ' + (herbText || '');
   text = text.toLowerCase();
@@ -342,58 +423,6 @@ function inferDiagnosis(medText, herbText) {
   }
 
   return results.join('\n') + '\n（本地推测仅供参考，请以医生诊断为准，建议复制给云端AI进一步验证）';
-}
-
-// 全局检查提醒逻辑
-const GENERIC_REASONS=['其他','常规体检','复查'];
-function checkEventLinks(newEvent){
-  if(!db.settings.remind) return;
-  if(!newEvent.reasons || !newEvent.reasons.length) return;
-  const myReasons=newEvent.reasons.filter(r=>!GENERIC_REASONS.includes(r));
-  if(!myReasons.length) return;
-  const links=[];
-  db.events.forEach(e=>{
-    if(e.id===newEvent.id) return;
-    if(!e.reasons || !e.reasons.length) return;
-    const common=e.reasons.filter(r=>myReasons.includes(r));
-    if(common.length>0) links.push({event:e, common:common});
-  });
-  if(!links.length) return;
-  links.sort((a,b)=>b.event.date.localeCompare(a.event.date));
-  const top=links[0];
-  if(db.messages.some(m=>m.type==='link' && m.srcId===newEvent.id)) return;
-  const text='你刚记录的这次「'+myReasons.join('、')+'」，和 '+top.event.date+' 那次类似'
-    +'（都是「'+top.common.join('、')+'」）'
-    +(top.event.diag?'，当时诊断：'+top.event.diag:'')
-    +(top.event.hosp?'，在'+top.event.hosp:'')+'。';
-  db.messages.push({
-    id:uid(), time:nowStr(), type:'link',
-    text:text, refId:top.event.id, srcId:newEvent.id, read:false
-  });
-}
-function checkPeriodRemind(){
-  if(!db.settings.remind) return;
-  const ps=sortedPeriods();
-  if(ps.length<1) return;
-  const last=ps[ps.length-1];
-  const lastEnd=perEnd(last);
-  const today=todayStr();
-  const days=diffDays(lastEnd,today);
-  let threshold=40;
-  if(ps.length>=3){
-    const gaps=[];
-    for(let i=1;i<ps.length;i++) gaps.push(diffDays(perEnd(ps[i-1]),perStart(ps[i])));
-    const avg=gaps.reduce((a,b)=>a+b,0)/gaps.length;
-    threshold=Math.max(35,Math.round(avg*1.5));
-  }
-  if(days<threshold) return;
-  if(db.messages.some(m=>m.type==='period' && m.refId===last.id)) return;
-  db.messages.push({
-    id:uid(), time:nowStr(), type:'period',
-    text:'距离上次经期结束已经 '+days+' 天，比平时的间隔长了一些。最近有来吗？有的话去日历点一下就好。',
-    refId:last.id, read:false
-  });
-  saveDB();
 }
 
 let view='home', calY, calM, editing=null, assistantTab='chat', recTab=0;
@@ -832,10 +861,21 @@ function renderMessages(){
   const body=$('assistantBody');
   const list=db.messages.slice().sort((a,b)=>b.time.localeCompare(a.time));
   let h='<div style="flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch">';
-  h+='<div class="switch-row"><div><div class="lbl">主动提醒</div>'
-    +'<div class="sub2">录完记录后自动比对；经期久了没记时提醒</div></div>'
+  
+  h+='<div class="switch-row"><div><div class="lbl">主动提醒 & 系统通知</div>'
+    +'<div class="sub2">开启后会请求权限，有提醒时直接弹横幅</div></div>'
     +'<label class="switch"><input type="checkbox" id="remindSwitch" '+(db.settings.remind?'checked':'')
     +' onchange="toggleRemind(this.checked)"><span class="sl"></span></label></div>';
+    
+  if(db.settings.remind) {
+    h+='<div class="switch-row"><div><div class="lbl">经期提醒间隔</div>'
+      +'<div class="sub2">超过多少天没有记录，自动提醒</div></div>'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+      +'<input type="number" id="remindDaysInput" value="'+(db.settings.periodRemindDays||90)+'" onchange="updateRemindDays(this.value)" style="width:64px;text-align:center;padding:6px;margin:0">'
+      +'<span style="font-size:14px;color:#8e8e93">天</span>'
+      +'</div></div>';
+  }
+  
   if(!list.length){
     h+='<div class="empty" style="padding:30px 20px">还没有消息<br><span style="font-size:13px">录入记录后，如果和以前相关，会在这里提醒你</span></div>';
   } else {
@@ -860,7 +900,36 @@ function renderMessages(){
       $('navDot').classList.toggle('on',u>0);},100);
   }
 }
-function toggleRemind(on){ db.settings.remind=on; saveDB(); toast(on?'已开启主动提醒':'已关闭主动提醒'); }
+
+async function toggleRemind(on){ 
+  if(on) {
+    const granted = await requestNotificationPermission();
+    if(!granted) {
+      toast('未开启通知权限，无法弹出系统横幅');
+      db.settings.remind = false;
+      saveDB();
+      renderMessages();
+      return;
+    }
+  }
+  db.settings.remind=on; 
+  saveDB(); 
+  toast(on?'已开启系统通知提醒':'已关闭提醒'); 
+  renderMessages(); // 重新渲染以显示/隐藏间隔输入框
+}
+
+function updateRemindDays(val) {
+  let n = parseInt(val);
+  if(isNaN(n) || n < 15) {
+    toast('天数不能少于15天，已重置为90');
+    n = 90;
+  }
+  db.settings.periodRemindDays = n;
+  saveDB();
+  toast('经期提醒已设为 '+n+' 天');
+  renderMessages(); // 刷新确保数值正确
+}
+
 function delMsg(id){ db.messages=db.messages.filter(x=>x.id!==id); saveDB(); renderMessages(); }
 function jumpTo(refId,msgId){
   const ev=db.events.find(x=>x.id===refId);
@@ -883,10 +952,22 @@ function rSet(m){
     +'<button class="btn sec" onclick="document.getElementById(\'imp\').click()">导入备份文件</button>'
     +'<input type="file" id="imp" accept=".json" style="display:none">'
     +'</div>'
+    +'<div class="card"><h3 style="margin-top:0">测试通知</h3>'
+    +'<div class="row" style="color:#8e8e93;font-size:13px">如果开启了通知权限，点击下面按钮，手机会弹出系统横幅。</div>'
+    +'<button class="btn" onclick="testNotify()">发送测试通知</button>'
+    +'</div>'
     +'<div class="card"><h3 style="margin-top:0">危险操作</h3>'
     +'<button class="btn sec" style="color:#ff3b30" onclick="clr()">清空全部数据</button>'
     +'</div></div>';
   $('imp').onchange=imp;
+}
+async function testNotify() {
+  const ok = await requestNotificationPermission();
+  if(ok) {
+    sendSystemNotification('📢 测试通知', '如果你看到了这条横幅，说明系统通知功能已生效！', 'test-1');
+  } else {
+    toast('通知权限未开启');
+  }
 }
 function exp(){
   const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
@@ -923,7 +1004,7 @@ function imp(e){
 function clr(){
   if(!confirm('确定清空全部数据？无法恢复。'))return;
   if(!confirm('再确认一次：真的要清空？'))return;
-  db={events:[],periods:[],chats:[],messages:[],settings:{remind:true}};saveDB();render();
+  db={events:[],periods:[],chats:[],messages:[],settings:{remind:true, periodRemindDays:90}};saveDB();render();
 }
 
 function openP(html){$('panel').innerHTML=html;$('mask').classList.add('on');$('panel').classList.add('on');}
@@ -986,7 +1067,6 @@ function viewSaved(evId,i){
 function closeViewer(){
   $('imgViewer').classList.remove('on');
 }
-
 function compressImage(file){
   return new Promise((resolve)=>{
     const reader=new FileReader();
