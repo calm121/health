@@ -162,7 +162,7 @@ font-size:13px;color:#4a1f75;line-height:1.6;white-space:pre-wrap}
 .herb-item .hact button.del{color:#ff3b30}
 .herb-summary{background:#f9f3ff;border-radius:12px;padding:14px;margin:12px;
 color:#4a1f75;font-size:13px;line-height:1.7}
-/* 图片 */
+/* 图片与文件 */
 .img-previews{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .img-thumb{position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;
 background:#f0f0f3;flex-shrink:0}
@@ -198,7 +198,7 @@ background:rgba(0,0,0,.5);border:none;cursor:pointer;width:44px;height:44px;bord
 <button id="fab">+</button>
 <div id="mask"></div>
 <div id="panel"></div>
-<div id="imgViewer" onclick="closeViewer(event)"><button class="close" onclick="closeViewer(event)">×</button><img id="imgViewerImg" src=""></div>
+<div id="imgViewer"><button class="close" onclick="closeViewer()">×</button><img id="imgViewerImg" src=""></div>
 
 <script>
 const K='health_v1';
@@ -224,9 +224,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function save(){
   try{ localStorage.setItem(K,JSON.stringify(db)); }
-  catch(e){
-    alert('存储空间已满。图片较多时可能超出浏览器上限，建议先导出备份，再删除一些旧图片。');
-  }
+  catch(e){ alert('存储空间已满。建议先导出备份，清理一些旧图。'); }
 }
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function todayStr(){
@@ -884,14 +882,14 @@ function evForm(ev){
     +allReasons.map(r=>'<span class="chip'+(reasons.includes(r)?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+r+'</span>').join('')
     +'</div></div>'
     +'<div class="field"><label>补充原因（自由写）</label><input id="f_reason2" value="'+esc(ev?ev.reason2:'')+'" placeholder="不在上面选项里的，写这里"></div>'
-    +'<div class="field"><label>报告图片（拍照或从相册选）</label>'
+    +'<div class="field"><label>报告图片/文件（推荐用扫描王处理后再传）</label>'
     +'<div id="imgPreviews" class="img-previews"></div>'
     +'<input type="file" id="f_img" accept="image/*" multiple style="display:none" onchange="onPickImages(event)">'
-    +'<button type="button" class="btn sec" onclick="document.getElementById(\'f_img\').click()">+ 添加图片</button>'
-    +'<button type="button" class="btn sec" id="ocrBtn" onclick="runOCR()" style="display:none">识别图片文字</button>'
-    +'<div class="ocr-tip">提示：识别为实验功能，首次需下载语言包（约 20MB），识别结果会自动填入下面的"检查项目与结果"，请核对后再保存。</div>'
+    +'<button type="button" class="btn sec" onclick="document.getElementById(\'f_img\').click()">+ 选择图片/拍照</button>'
+    +'<button type="button" class="btn sec" id="ocrBtn" onclick="runOCR()" style="display:none">提取图片文字</button>'
+    +'<div class="ocr-tip">提示：扫描王处理过的图识别率最高。识别结果会自动分行过滤填入下方。</div>'
     +'</div>'
-    +'<div class="field"><label>检查项目与结果</label><textarea id="f_exam" rows="3">'+esc(ev?ev.exam:'')+'</textarea></div>'
+    +'<div class="field"><label>检查项目与结果</label><textarea id="f_exam" rows="4">'+esc(ev?ev.exam:'')+'</textarea></div>'
     +'<div class="field"><label>诊断</label><input id="f_diag" value="'+esc(ev?ev.diag:'')+'" placeholder="如：慢性胃炎"></div>'
     +'<div class="field"><label>用药（西药）</label><textarea id="f_med" rows="2">'+esc(ev?ev.med:'')+'</textarea></div>'
     +'<div class="field"><label>我的感受</label><textarea id="f_feel" rows="2">'+esc(ev?ev.feel:'')+'</textarea></div>'
@@ -925,14 +923,9 @@ function viewSaved(evId,i){
     $('imgViewer').classList.add('on');
   }
 }
-function closeViewer(e){
-  if(e && e.target && e.target.tagName==='IMG' && e.type!=='click') return;
-  if(e && e.target && e.target.tagName==='IMG') return;
+function closeViewer(){
   $('imgViewer').classList.remove('on');
 }
-$('imgViewer').addEventListener('click',function(e){
-  if(e.target.tagName!=='IMG') $('imgViewer').classList.remove('on');
-});
 
 function compressImage(file){
   return new Promise((resolve)=>{
@@ -979,28 +972,35 @@ async function runOCR(){
   const btn=$('ocrBtn');
   const old=btn.textContent;
   btn.disabled=true;
-  btn.textContent='正在加载识别引擎（首次较慢）…';
+  btn.textContent='正在加载识别引擎…';
   try{
     if(!window.Tesseract){
       await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
     }
-    btn.textContent='识别中…（请耐心等待）';
+    btn.textContent='识别中…请稍等';
     const worker=await Tesseract.createWorker('chi_sim+eng');
     let all='';
     for(const src of editingImages){
       const { data: { text } }=await worker.recognize(src);
-      all+=(all?'\n---\n':'')+text.trim();
+      all+=text+'\n';
     }
     await worker.terminate();
+    
+    // 优化：智能分行过滤
+    let lines = all.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+    let filtered = lines.filter(l => /[0-9]/.test(l) || /[a-zA-Z]/.test(l) || /[阴阳性\+\-]/.test(l));
+    if(filtered.length === 0) filtered = lines; // 如果过滤完啥都没了，就保留原文
+    
     const box=$('f_exam');
     if(box){
-      box.value=(box.value?box.value+'\n':'')+all;
+      box.value=(box.value?box.value+'\n':'')+filtered.join('\n');
     }
-    btn.textContent='识别完成，已填入"检查结果"';
+    
+    btn.textContent='提取完成，已填入';
     btn.disabled=false;
     setTimeout(()=>{btn.textContent=old;},2000);
   }catch(err){
-    btn.textContent='识别失败，请重试';
+    btn.textContent='失败，重试';
     btn.disabled=false;
   }
 }
