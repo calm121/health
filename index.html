@@ -5,210 +5,176 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0a84ff">
+<meta name="theme-color" content="#f5f5f7">
 <link rel="manifest" href="manifest.json">
 <title>我的健康档案</title>
 <style>
+/* 全局苹果风重置 */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
-html,body{height:100%;overscroll-behavior:none}
-body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-background:#f2f3f5;color:#1c1c1e;font-size:15px;touch-action:pan-y}
+html,body{height:100%;overscroll-behavior:none;background:#f5f5f7;color:#1d1d1f}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Helvetica Neue",Arial,sans-serif;font-size:15px;touch-action:pan-y;line-height:1.4}
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
-header{background:#0a84ff;color:#fff;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;
-flex-shrink:0;box-shadow:0 1px 8px rgba(0,0,0,.15)}
-header h1{font-size:17px;font-weight:600}
-header .sub{font-size:12px;opacity:.85;margin-top:2px}
-main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px}
-nav{display:flex;background:#fff;border-top:1px solid #e5e5ea;
-padding-bottom:env(safe-area-inset-bottom);flex-shrink:0}
-nav button{flex:1;border:none;background:none;padding:8px 0 6px;font-size:10px;
-color:#8e8e93;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
-nav button .ic{font-size:20px;line-height:1}
-nav button.on{color:#0a84ff}
-nav button .dot{position:absolute;top:4px;right:calc(50% - 15px);
-width:8px;height:8px;border-radius:50%;background:#ff3b30;display:none}
-nav button .dot.on{display:block}
-.wrap{padding:12px;max-width:760px;margin:0 auto}
-.card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;
-box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative}
-.card .date{font-size:13px;color:#0a84ff;font-weight:600}
-.card .hosp{font-size:13px;color:#8e8e93;margin-top:2px}
-.card h3{font-size:16px;font-weight:600;margin:8px 0 4px}
-.row{margin-top:8px;font-size:14px;line-height:1.6;color:#3a3a3c}
-.row b{color:#1c1c1e}
-.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;
-background:#eaf3ff;color:#0a84ff;margin-right:6px;margin-top:6px}
-.tag.g{background:#e8f8ee;color:#1a8c46}
-.acts{position:absolute;top:12px;right:12px;display:flex;gap:10px}
-.acts button{background:none;border:none;font-size:13px;color:#8e8e93;padding:2px}
-.acts button.del{color:#ff3b30}
-.empty{text-align:center;color:#8e8e93;padding:50px 20px;line-height:1.8;font-size:14px}
-.seg{display:flex;background:#e9e9eb;border-radius:9px;padding:3px;margin:12px 12px 0}
-.seg button{flex:1;border:none;background:none;padding:8px;border-radius:7px;
-font-size:14px;color:#3a3a3c;cursor:pointer}
-.seg button.on{background:#fff;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
-.stat{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;
-box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.stat .big{font-size:15px;font-weight:600;margin-bottom:8px}
-.stat .line{font-size:14px;color:#3a3a3c;line-height:1.9;display:flex;justify-content:space-between}
-.stat .line span:last-child{color:#0a84ff;font-weight:600}
-#fab{position:fixed;right:18px;bottom:calc(70px + env(safe-area-inset-bottom));
-width:56px;height:56px;border-radius:50%;background:#0a84ff;color:#fff;
-font-size:30px;border:none;box-shadow:0 4px 14px rgba(10,132,255,.45);line-height:1;z-index:20}
-#mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:30}
-#mask.on{display:block}
-#panel{position:fixed;left:0;right:0;bottom:0;background:#fff;
-border-radius:16px 16px 0 0;max-height:92vh;overflow-y:auto;z-index:31;
-transform:translateY(100%);transition:transform .25s;
-padding:16px 16px calc(30px + env(safe-area-inset-bottom))}
-#panel.on{transform:translateY(0)}
-#panel h2{font-size:17px;margin-bottom:14px}
-.field{margin-bottom:12px}
-.field label{display:block;font-size:13px;color:#8e8e93;margin-bottom:5px}
-input,select,textarea{font-family:inherit;font-size:16px;border:1px solid #d1d1d6;
-border-radius:8px;padding:9px 10px;background:#fff;width:100%;outline:none;color:#1c1c1e}
-input:focus,select:focus,textarea:focus{border-color:#0a84ff}
-textarea{resize:vertical}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.btn{width:100%;padding:13px;border-radius:10px;border:none;font-size:16px;
-font-weight:600;background:#0a84ff;color:#fff;margin-top:6px}
-.btn.sec{background:#f0f0f3;color:#1c1c1e;margin-top:8px}
-.btn:disabled{opacity:.6}
-.chip{display:inline-block;padding:7px 12px;border-radius:18px;background:#f0f0f3;
-font-size:13px;color:#3a3a3c;margin:0 6px 6px 0;cursor:pointer;border:1px solid transparent}
-.chip.on{background:#eaf3ff;color:#0a84ff;border-color:#0a84ff}
-.monthbar{display:flex;justify-content:space-between;align-items:center;
-padding:12px;font-size:16px;font-weight:600}
-.monthbar button{border:none;background:#f0f0f3;border-radius:8px;
-width:36px;height:36px;font-size:18px;color:#0a84ff}
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;padding:0 12px}
-.cal .wd{text-align:center;font-size:12px;color:#8e8e93;padding:6px 0}
-.cal .d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;
-font-size:14px;border-radius:50%;color:#1c1c1e;cursor:pointer;transition:background .15s}
-.cal .d.blank{visibility:hidden;cursor:default}
-.cal .d.p{background:#ff5c8a;color:#fff;font-weight:700}
-.cal .d.today{box-shadow:inset 0 0 0 2px #0a84ff}
-.tl{padding:6px 12px}
-.tl .item{position:relative;padding:0 0 20px 22px;border-left:2px solid #d1d1d6;margin-left:6px}
-.tl .item:last-child{border-left-color:transparent;padding-bottom:6px}
-.tl .item::before{content:'';position:absolute;left:-7px;top:2px;width:12px;height:12px;
-border-radius:50%;background:#ff5c8a;border:2px solid #fff}
-.tl .t{font-size:14px;font-weight:600}
-.tl .s{font-size:13px;color:#8e8e93;margin-top:4px;line-height:1.7}
-.tl .gap{font-size:12px;color:#c2185b;background:#ffe8ee;
-display:inline-block;padding:2px 8px;border-radius:10px;margin:4px 0 0 0}
-.hint{font-size:12px;color:#8e8e93;text-align:center;padding:12px}
-#chatScroll{flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
-#chatBar{flex-shrink:0;background:#fff;border-top:1px solid #e5e5ea;
-padding:8px 12px;padding-bottom:8px}
-.qq{display:inline-block;padding:5px 11px;background:#f0f0f3;border-radius:14px;
-font-size:12px;color:#0a84ff;margin:0 6px 6px 0;cursor:pointer;user-select:none}
-.qq:active{background:#e0e0e5}
-.bubble-u{background:#0a84ff;color:#fff;border-radius:16px 16px 4px 16px;
-padding:10px 13px;margin:10px 0 10px auto;max-width:82%;width:fit-content;
-font-size:14px;line-height:1.5;word-break:break-word}
-.bubble-b{background:#fff;border-radius:16px 16px 16px 4px;
-padding:13px;margin:10px auto 10px 0;max-width:96%;
-box-shadow:0 1px 3px rgba(0,0,0,.06);
-font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word;
-font-family:-apple-system,"PingFang SC","Microsoft YaHei",monospace;color:#1c1c1e}
-.copy-btn{margin-top:10px;padding:9px 16px;background:#0a84ff;color:#fff;
-border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
-.copy-btn:active{background:#0070e0}
-.bubble-t{font-size:11px;color:#8e8e93;text-align:center;margin:14px 0 4px}
-.chat-hint{text-align:center;font-size:12px;color:#8e8e93;padding:20px 30px;line-height:1.8}
-.chat-input-row{display:flex;gap:8px}
-.chat-input-row input{flex:1;font-size:15px;padding:9px 12px}
-.chat-input-row button{padding:0 18px;background:#0a84ff;color:#fff;border:none;
-border-radius:8px;font-size:14px;font-weight:600;flex-shrink:0}
-.chat-input-row button:active{background:#0070e0}
-.switch-row{display:flex;align-items:center;justify-content:space-between;
-background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;
-box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.switch-row .lbl{font-size:15px;color:#1c1c1e}
-.switch-row .sub2{font-size:12px;color:#8e8e93;margin-top:3px}
-.switch{position:relative;width:50px;height:30px;flex-shrink:0;margin-left:12px}
-.switch input{opacity:0;width:0;height:0}
-.switch .sl{position:absolute;inset:0;background:#e9e9eb;border-radius:15px;
-transition:.2s;cursor:pointer}
-.switch .sl::before{content:'';position:absolute;width:26px;height:26px;
-left:2px;top:2px;background:#fff;border-radius:50%;transition:.2s;
-box-shadow:0 1px 3px rgba(0,0,0,.2)}
-.switch input:checked + .sl{background:#34c759}
-.switch input:checked + .sl::before{transform:translateX(20px)}
-.msg-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;
-box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative}
-.msg-card.unread{border-left:3px solid #0a84ff}
-.msg-card .mt{font-size:12px;color:#8e8e93;margin-bottom:6px}
-.msg-card .mx{font-size:14px;line-height:1.65;color:#1c1c1e}
-.msg-card .mact{margin-top:10px;display:flex;gap:8px}
-.msg-card .mact button{padding:7px 14px;border-radius:8px;border:none;
-font-size:13px;cursor:pointer}
-.msg-card .mact .go{background:#eaf3ff;color:#0a84ff;font-weight:600}
-.msg-card .mact .del{background:#f0f0f3;color:#8e8e93}
-.msg-badge{display:inline-block;background:#ff3b30;color:#fff;font-size:10px;
-padding:1px 6px;border-radius:8px;margin-left:4px;vertical-align:middle}
-.herb-timeline{padding:6px 12px}
-.herb-item{position:relative;padding:0 0 18px 22px;border-left:2px solid #d9c4f0;margin-left:6px}
-.herb-item:last-child{border-left-color:transparent;padding-bottom:6px}
-.herb-item::before{content:'';position:absolute;left:-7px;top:2px;width:12px;height:12px;
-border-radius:50%;background:#9b59d0;border:2px solid #fff}
-.herb-item .ht{font-size:14px;font-weight:600;color:#5a2a8c}
-.herb-item .hd{font-size:12px;color:#8e8e93;margin-top:3px;line-height:1.6}
-.herb-item .hf{margin-top:6px;padding:8px 10px;background:#f9f3ff;border-radius:8px;
-font-size:13px;color:#4a1f75;line-height:1.6;white-space:pre-wrap}
-.herb-item .hact{margin-top:8px;display:flex;gap:14px;font-size:12px}
-.herb-item .hact button{background:none;border:none;color:#8e8e93;padding:2px}
-.herb-item .hact button.del{color:#ff3b30}
-.herb-summary{background:#f9f3ff;border-radius:12px;padding:14px;margin:12px;
-color:#4a1f75;font-size:13px;line-height:1.7}
-.img-previews{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-.img-thumb{position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;
-background:#f0f0f3;flex-shrink:0}
-.img-thumb img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block}
-.img-thumb .rm{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;
-background:rgba(0,0,0,.65);color:#fff;border:none;font-size:14px;line-height:1;cursor:pointer;padding:0}
-.card-img{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.card-img img{width:70px;height:70px;object-fit:cover;border-radius:6px;cursor:pointer;background:#f0f0f3}
-#imgViewer{position:fixed;inset:0;background:rgba(0,0,0,.94);display:none;z-index:100;
-align-items:center;justify-content:center;padding:16px}
-#imgViewer.on{display:flex}
-#imgViewer img{max-width:100%;max-height:100%;object-fit:contain}
-#imgViewer .close{position:absolute;top:14px;right:14px;color:#fff;font-size:32px;
-background:rgba(0,0,0,.5);border:none;cursor:pointer;width:44px;height:44px;border-radius:50%}
-.infer-box{margin-top:8px;background:#fffbef;border:1px solid #ffebc2;border-radius:8px;padding:8px 10px}
-.infer-box summary{cursor:pointer;font-size:13px;font-weight:600;color:#c27c00;outline:none;display:flex;align-items:center;gap:4px}
-.infer-box summary::-webkit-details-marker{display:none}
-.infer-box summary::before{content:'💡';font-size:14px}
-.infer-content{font-size:13px;color:#6b4800;line-height:1.6;margin-top:6px;padding-top:6px;border-top:1px dashed #ffebc2}
 
-/* 搜索 & 身体模块 */
-.search-box{padding:10px 12px;background:#fff;position:sticky;top:0;z-index:10;border-bottom:1px solid #e5e5ea}
-.search-box input{border-radius:20px;padding:8px 16px;background:#f2f3f5;border:none;font-size:14px}
-.body-header{background:linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);color:#fff;padding:20px;text-align:center;border-radius:12px;margin-bottom:12px}
-.body-header .val{font-size:32px;font-weight:700;margin:4px 0}
-.body-header .unit{font-size:14px;font-weight:400;opacity:.8}
-.body-header .bmi{display:inline-block;background:rgba(255,255,255,.25);padding:4px 12px;border-radius:12px;font-size:13px;margin-top:8px}
-.nutri-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);border-left:4px solid #34c759}
-.nutri-card h4{font-size:15px;color:#1c1c1e;margin-bottom:6px}
-.nutri-card p{font-size:13px;color:#666;line-height:1.6}
-.nutri-card .food-tag{display:inline-block;background:#e8f8ee;color:#1a8c46;padding:3px 8px;border-radius:6px;font-size:12px;margin:4px 4px 0 0}
+/* 顶部导航 */
+header{background:rgba(255,255,255,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;flex-shrink:0;
+display:flex;justify-content:space-between;align-items:center;
+position:sticky;top:0;z-index:20;border-bottom:0.5px solid #e5e5ea}
+header h1{font-size:18px;font-weight:700;color:#1d1d1f}
+.header-right{font-size:20px;color:#8e8e93;cursor:pointer;padding:4px}
+
+/* 主内容区 */
+main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px}
+.wrap{padding:16px;max-width:760px;margin:0 auto}
+
+/* 底部导航 */
+nav{display:flex;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);
+border-top:0.5px solid #e5e5ea;padding-bottom:env(safe-area-inset-bottom);
+flex-shrink:0;position:relative;z-index:20}
+nav button{flex:1;border:none;background:none;padding:6px 0 4px;font-size:10px;
+color:#8e8e93;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative}
+nav button .ic svg{width:24px;height:24px;transition:all .2s}
+nav button.on{color:#ff6b81;font-weight:600}
+nav button .dot{position:absolute;top:6px;right:calc(50% - 12px);width:8px;height:8px;border-radius:50%;background:#ff3b30;display:none;border:1.5px solid #fff}
+nav button .dot.on{display:block}
+
+/* 卡片基础样式 */
+.card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;
+box-shadow:0 2px 8px rgba(0,0,0,.03);position:relative}
+.card h3{font-size:16px;font-weight:600;margin-bottom:8px;color:#1d1d1f}
+.row{margin-top:8px;font-size:14px;line-height:1.6;color:#3a3a3c}
+.row b{color:#1d1d1f;font-weight:500}
+.acts{position:absolute;top:14px;right:14px;display:flex;gap:12px}
+.acts button{background:none;border:none;font-size:13px;color:#007aff;padding:2px;cursor:pointer}
+.acts button.del{color:#ff3b30}
+
+/* 首页特调 */
+.hero-card{background:linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+border-radius:20px;padding:20px;color:#fff;margin-bottom:16px;
+box-shadow:0 8px 20px rgba(255,154,158,.3);position:relative;overflow:hidden}
+.hero-card::after{content:'';position:absolute;right:-20px;bottom:-20px;
+width:120px;height:120px;background:rgba(255,255,255,.15);border-radius:50%;filter:blur(10px)}
+.hero-card .title{font-size:14px;opacity:.9;margin-bottom:4px;font-weight:500}
+.hero-card .val{font-size:26px;font-weight:700;margin-bottom:2px}
+.hero-card .sub{font-size:13px;opacity:.85}
+.hero-empty{background:#fff;border-radius:20px;padding:24px;text-align:center;color:#8e8e93;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.03)}
+
+/* 列表 & 标签 */
+.tag{display:inline-block;font-size:11px;padding:3px 8px;border-radius:8px;
+background:#ffeef0;color:#ff6b81;margin-right:6px;margin-top:8px;font-weight:500}
+.tag.blue{background:#eef7ff;color:#007aff}
+.tag.purple{background:#f3e8ff;color:#8a2be2}
+.empty{text-align:center;color:#8e8e93;padding:50px 20px;font-size:14px}
+
+/* 分段控制器 */
+.seg{display:flex;background:#e3e3e8;border-radius:10px;padding:2px;margin:12px 16px 0}
+.seg button{flex:1;border:none;background:none;padding:6px;border-radius:8px;
+font-size:13px;color:#1d1d1f;cursor:pointer;transition:.2s}
+.seg button.on{background:#fff;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+/* 搜索框 */
+.search-box{padding:8px 16px;background:#f5f5f7;position:sticky;top:0;z-index:10}
+.search-box input{border-radius:12px;padding:10px 14px;background:#e3e3e8;border:none;font-size:15px;width:100%;outline:none}
+
+/* 日历定制 */
+.monthbar{display:flex;justify-content:space-between;align-items:center;padding:16px;font-size:18px;font-weight:600}
+.monthbar button{border:none;background:#fff;border-radius:50%;width:36px;height:36px;font-size:18px;color:#007aff;box-shadow:0 2px 6px rgba(0,0,0,.05);cursor:pointer}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:0 16px;touch-action:pan-y}
+.cal .wd{text-align:center;font-size:12px;color:#8e8e93;padding:8px 0;font-weight:500}
+.cal .d{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:15px;border-radius:50%;color:#1d1d1f;cursor:pointer;transition:.1s}
+.cal .d.blank{visibility:hidden;cursor:default}
+.cal .d.p{background:#ff6b81;color:#fff;font-weight:600;box-shadow:0 4px 10px rgba(255,107,129,.3)}
+.cal .d.today{border:2px solid #007aff}
+
+/* 时间轴 */
+.tl{padding:10px 16px}
+.tl .item{position:relative;padding:0 0 20px 22px;border-left:2px solid #e5e5ea;margin-left:6px}
+.tl .item:last-child{border-left-color:transparent;padding-bottom:0}
+.tl .item::before{content:'';position:absolute;left:-6px;top:4px;width:10px;height:10px;border-radius:50%;background:#ff6b81;border:2px solid #fff}
+.tl .t{font-size:15px;font-weight:600}
+.tl .s{font-size:13px;color:#8e8e93;margin-top:4px}
+.tl .gap{font-size:12px;color:#ff6b81;background:#ffeef0;display:inline-block;padding:2px 8px;border-radius:8px;margin:6px 0 0 0;font-weight:500}
+
+/* 表单弹窗 */
+#mask{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:90;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+#mask.on{display:block}
+#panel{position:fixed;left:0;right:0;bottom:0;background:#f5f5f7;
+border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;z-index:100;
+transform:translateY(100%);transition:transform .3s cubic-bezier(0.32, 0.72, 0, 1);
+padding:20px 16px calc(30px + env(safe-area-inset-bottom))}
+#panel.on{transform:translateY(0)}
+#panel h2{font-size:20px;font-weight:700;margin-bottom:20px;text-align:center}
+.field{margin-bottom:16px;background:#fff;border-radius:12px;padding:12px}
+.field label{display:block;font-size:13px;color:#8e8e93;margin-bottom:6px;font-weight:500}
+input,select,textarea{font-family:inherit;font-size:16px;border:none;background:transparent;width:100%;outline:none;color:#1d1d1f;padding:0}
+textarea{resize:vertical}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{width:100%;padding:16px;border-radius:14px;border:none;font-size:16px;font-weight:600;background:#007aff;color:#fff;margin-top:8px;cursor:pointer;transition:.2s}
+.btn:active{opacity:.8}
+.btn.sec{background:#e3e3e8;color:#1d1d1f}
+.chip{display:inline-block;padding:8px 14px;border-radius:20px;background:#e3e3e8;font-size:14px;color:#1d1d1f;margin:0 8px 8px 0;cursor:pointer;border:1px solid transparent}
+.chip.on{background:#ffeef0;color:#ff6b81;border-color:#ff6b81;font-weight:600}
+
+/* 身体模块特调 */
+.body-header{background:linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);color:#fff;padding:24px;text-align:center;border-radius:20px;margin-bottom:16px;box-shadow:0 8px 20px rgba(79,172,254,.3)}
+.body-header .val{font-size:36px;font-weight:700;margin:8px 0}
+.body-header .unit{font-size:16px;font-weight:400;opacity:.9}
+.body-header .bmi{display:inline-block;background:rgba(255,255,255,.25);padding:6px 16px;border-radius:20px;font-size:14px;margin-top:12px;font-weight:500}
+.nutri-card{background:#fff;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.03);border-left:4px solid #34c759}
+.nutri-card h4{font-size:16px;color:#1d1d1f;margin-bottom:6px}
+.nutri-card p{font-size:14px;color:#666;line-height:1.5;margin-bottom:10px}
+.food-tag{display:inline-block;background:#e8f8ee;color:#1a8c46;padding:4px 10px;border-radius:8px;font-size:12px;margin:4px 6px 0 0;font-weight:500}
+#fab{position:fixed;right:20px;bottom:calc(80px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;background:#ff6b81;color:#fff;font-size:32px;border:none;box-shadow:0 4px 14px rgba(255,107,129,.4);line-height:1;z-index:20;cursor:pointer;display:flex;align-items:center;justify-content:center;padding-bottom:4px}
+#fab:active{transform:scale(.95)}
+
+/* 图片 */
+.img-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.img-thumb{position:relative;width:80px;height:80px;border-radius:10px;overflow:hidden;background:#e3e3e8;flex-shrink:0}
+.img-thumb img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block}
+.img-thumb .rm{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;border:none;font-size:16px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.card-img{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.card-img img{width:80px;height:80px;object-fit:cover;border-radius:10px;cursor:pointer;background:#e3e3e8}
+#imgViewer{position:fixed;inset:0;background:rgba(0,0,0,.95);display:none;z-index:200;align-items:center;justify-content:center;padding:20px}
+#imgViewer.on{display:flex}
+#imgViewer img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
+#imgViewer .close{position:absolute;top:20px;right:20px;color:#fff;font-size:30px;background:rgba(255,255,255,.2);border:none;cursor:pointer;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+
+/* 反推折叠 */
+.infer-box{margin-top:12px;background:#fff9f0;border-radius:12px;padding:12px}
+.infer-box summary{cursor:pointer;font-size:14px;font-weight:600;color:#d97706;outline:none;display:flex;align-items:center;gap:6px}
+.infer-box summary::-webkit-details-marker{display:none}
+.infer-box summary::before{content:'💡';font-size:16px}
+.infer-content{font-size:13px;color:#92400e;line-height:1.6;margin-top:10px;padding-top:10px;border-top:1px solid #fef3c7}
+
+/* 聊天 */
+#chatScroll{flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch}
+#chatBar{flex-shrink:0;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);border-top:1px solid #e5e5ea;padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+.qq{display:inline-block;padding:6px 12px;background:#f5f5f7;border:1px solid #e5e5ea;border-radius:16px;font-size:13px;color:#007aff;margin:0 6px 8px 0;cursor:pointer;user-select:none}
+.bubble-u{background:#007aff;color:#fff;border-radius:18px 18px 4px 18px;padding:12px 16px;margin:16px 0 16px auto;max-width:85%;width:fit-content;font-size:15px;line-height:1.5;word-break:break-word}
+.bubble-b{background:#fff;border-radius:18px 18px 18px 4px;padding:16px;margin:0 auto 16px 0;max-width:90%;box-shadow:0 2px 10px rgba(0,0,0,.04);font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;font-family:Menlo,Monaco,monospace;color:#1d1d1f}
+.copy-btn{margin-top:12px;padding:8px 16px;background:#f5f5f7;color:#007aff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer}
+.bubble-t{font-size:12px;color:#8e8e93;text-align:center;margin:16px 0 8px}
+.chat-input-row{display:flex;gap:10px}
+.chat-input-row input{flex:1;font-size:15px;padding:10px 16px;background:#f5f5f7;border-radius:20px}
+.chat-input-row button{padding:0 20px;background:#007aff;color:#fff;border:none;border-radius:20px;font-size:15px;font-weight:600;flex-shrink:0}
+.toast{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:14px 24px;border-radius:12px;z-index:999;font-size:15px;pointer-events:none;backdrop-filter:blur(4px)}
 </style>
 </head>
 <body>
 <div id="app">
   <header>
     <h1 id="ttl">我的健康档案</h1>
-    <div class="sub" id="sub">数据仅存本机</div>
+    <div class="header-right" onclick="view='set'; render();">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </div>
   </header>
   <main id="main"></main>
   <nav>
-    <button data-v="home" class="on"><span class="ic">🏠</span>首页</button>
-    <button data-v="rec"><span class="ic">📁</span>档案</button>
-    <button data-v="body"><span class="ic">📊</span>身体</button>
-    <button data-v="per"><span class="ic">🌸</span>经期</button>
-    <button data-v="chat"><span class="ic">💬</span>助手<span class="dot" id="navDot"></span></button>
-    <button data-v="set"><span class="ic">⚙️</span>设置</button>
+    <button data-v="home" class="on"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></span>首页</button>
+    <button data-v="rec"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg></span>档案</button>
+    <button data-v="chat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>助手<span class="dot" id="navDot"></span></button>
+    <button data-v="per"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg></span>经期</button>
+    <button data-v="body"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>身体</button>
   </nav>
 </div>
 <button id="fab">+</button>
@@ -222,10 +188,7 @@ let db = {events:[],periods:[],chats:[],messages:[],bodyRecords:[],settings:{rem
 function initDB(){
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('HealthDB', 1);
-    req.onupgradeneeded = e => {
-      const d = e.target.result;
-      if(!d.objectStoreNames.contains('kv')) d.createObjectStore('kv');
-    };
+    req.onupgradeneeded = e => { const d = e.target.result; if(!d.objectStoreNames.contains('kv')) d.createObjectStore('kv'); };
     req.onsuccess = e => {
       const d = e.target.result;
       const tx = d.transaction('kv', 'readonly');
@@ -235,9 +198,7 @@ function initDB(){
         if(getReq.result) db = getReq.result;
         else {
           const old = localStorage.getItem('health_v1');
-          if(old) {
-            try { db = JSON.parse(old); saveDB(); localStorage.removeItem('health_v1'); } catch(err){}
-          }
+          if(old) { try { db = JSON.parse(old); saveDB(); localStorage.removeItem('health_v1'); } catch(err){} }
         }
         if(!db.events) db.events = [];
         if(!db.periods) db.periods = [];
@@ -276,8 +237,7 @@ function todayStr(){
 }
 function nowStr(){
   const d=new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')
-    +' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0') +' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
 function addDays(ds,n){
   const [y,m,d]=ds.split('-').map(Number);
@@ -331,10 +291,7 @@ function checkEventLinks(newEvent){
   links.sort((a,b)=>b.event.date.localeCompare(a.event.date));
   const top=links[0];
   if(db.messages.some(m=>m.type==='link' && m.srcId===newEvent.id)) return;
-  const text='你刚记录的这次「'+myReasons.join('、')+'」，和 '+top.event.date+' 那次类似'
-    +'（都是「'+top.common.join('、')+'」）'
-    +(top.event.diag?'，当时诊断：'+top.event.diag:'')
-    +(top.event.hosp?'，在'+top.event.hosp:'')+'。';
+  const text='你刚记录的这次「'+myReasons.join('、')+'」，和 '+top.event.date+' 那次类似（都是「'+top.common.join('、')+'」）'+(top.event.diag?'，当时诊断：'+top.event.diag:'')+(top.event.hosp?'，在'+top.event.hosp:'')+'。';
   db.messages.push({ id:uid(), time:nowStr(), type:'link', text:text, refId:top.event.id, srcId:newEvent.id, read:false });
 }
 
@@ -374,34 +331,31 @@ function inferDiagnosis(medText, herbText) {
     { keys:['氯雷他定','西替利嗪','扑尔敏','依巴斯汀'], desc:'抗组胺药，通常用于缓解过敏性鼻炎、荨麻疹等过敏症状。' },
     { keys:['氨氯地平','硝苯地平','缬沙坦','美托洛尔','替米沙坦','厄贝沙坦'], desc:'心血管类药物，主要用于降血压或控制心率。' },
     { keys:['阿托伐他汀','瑞舒伐他汀','辛伐他汀'], desc:'降脂药，用于降低胆固醇和血脂。' },
-    { keys:['艾司唑仑','阿普唑仑','劳拉西泮','褪黑素','佐匹克隆'], desc:'镇静催眠或抗焦虑药物，用于改善睡眠。' },
-    { keys:['二甲双胍','阿卡波糖','格列美脲','达格列净'], desc:'降糖药物，用于控制血糖，常见于糖尿病治疗。' },
     { keys:['柴胡','桂枝','当归','白芍','川芎','熟地黄','益母草','香附'], desc:'中药方剂中常见组合，常涉及疏肝解郁、活血化瘀或调理气血。' }
   ];
   rules.forEach(r => {
     let found = r.keys.filter(k => text.includes(k));
     if(found.length > 0) results.push(`发现「${found.join('、')}」：${r.desc}`);
   });
-  if(results.length === 0) {
-    if(medText || herbText) return '用药组合暂未匹配到内置常见知识库。建议复制具体药名到外部AI进行更细致的药理分析。';
-    return '';
-  }
+  if(results.length === 0) return (medText || herbText) ? '用药组合暂未匹配到内置常见知识库。建议复制具体药名到外部AI进行更细致的药理分析。' : '';
   return results.join('\n') + '\n（本地推测仅供参考，请以医生诊断为准，建议复制给云端AI进一步验证）';
 }
 
 let view='home', calY, calM, editing=null, assistantTab='chat', recTab=0;
-let editingImages=[];
-let searchQuery='';
+let editingImages=[], searchQuery='';
 
 function render(){
   const m=$('main');
+  const titles = {home:'现在', rec:'健康档案', body:'身体概况', per:'经期日历', chat:'健康助手', set:'设置'};
+  $('ttl').textContent = titles[view] || '我的健康档案';
+  
   if(view==='chat'){
     m.style.overflow='hidden'; m.style.display='flex'; m.style.flexDirection='column';
   } else {
     m.style.overflow='auto'; m.style.display=''; m.scrollTop=0;
   }
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v===view));
-  $('fab').style.display=(view==='home'||view==='rec'||view==='body')?'block':'none';
+  $('fab').style.display=(view==='home'||view==='rec'||view==='body')?'flex':'none';
   
   if(view==='home') rHome(m);
   if(view==='rec') rRec(m);
@@ -410,7 +364,6 @@ function render(){
   if(view==='chat') rAssistant(m);
   if(view==='set') rSet(m);
   
-  $('sub').textContent='数据仅存本机 · '+db.events.length+' 条事件 · '+db.periods.length+' 次经期';
   const unread=db.messages.filter(x=>!x.read).length;
   $('navDot').classList.toggle('on', unread>0);
 }
@@ -418,74 +371,59 @@ function render(){
 function rHome(m){
   const ps=sortedPeriods();
   const p=ps.slice(-1)[0];
-  const ev=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date))[0];
   let h='<div class="wrap">';
-  h+='<div class="stat"><div class="big">现在</div>';
+  
   if(p){
     const s=perStart(p), e=perEnd(p);
     const today=todayStr();
     const dur=p.dates.length;
     const sinceEnd=diffDays(e,today);
     if(e>=today){
-      h+='<div class="line"><span>本次经期</span><span>进行中</span></div>';
-      h+='<div class="line"><span>已持续</span><span>'+dur+' 天</span></div>';
+      h+='<div class="hero-card"><div class="title">当前状态</div><div class="val">经期进行中</div><div class="sub">已持续 '+dur+' 天</div></div>';
     } else {
-      h+='<div class="line"><span>最近一次经期</span><span>'+fmtDate(s)+'</span></div>';
-      h+='<div class="line"><span>持续</span><span>'+dur+' 天</span></div>';
-      h+='<div class="line"><span>距结束已过</span><span>'+sinceEnd+' 天</span></div>';
+      h+='<div class="hero-card"><div class="title">最近一次经期</div><div class="val">'+fmtDate(s)+'</div><div class="sub">距结束已过 '+sinceEnd+' 天</div></div>';
     }
   }else{
-    h+='<div class="line"><span>经期</span><span>还没有记录</span></div>';
+    h+='<div class="hero-empty">还没有经期记录，去日历点一下吧</div>';
   }
-  if(ev){
-    h+='<div class="line" style="margin-top:6px"><span>最近就诊</span><span>'+esc(ev.date)+'</span></div>';
-  }
-  h+='</div>';
+  
+  h+='<div style="font-size:16px;font-weight:600;margin:20px 0 10px">最近的事件</div>';
   const list=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
-  h+='<div class="card"><h3 style="margin:0 0 6px">最近的事件</h3>';
-  if(!list.length) h+='<div class="empty" style="padding:20px">还没有记录，点右下角 + 添加</div>';
+  if(!list.length) h+='<div class="card" style="text-align:center;color:#8e8e93;padding:30px">暂无记录，点右下角 + 添加</div>';
+  
   list.forEach(e=>{
-    h+='<div class="row" style="border-top:1px solid #f0f0f3;padding-top:8px">'
-      +'<b>'+esc(e.date)+'</b> · '+esc((e.reasons||[]).join('、')||e.diag||'记录')
-      +(e.hosp?' <span style="color:#8e8e93">'+esc(e.hosp)+'</span>':'')
-      +(e.images&&e.images.length?' <span style="color:#8e8e93">📎'+e.images.length+'</span>':'')
+    h+='<div class="card" onclick="editEv(\''+e.id+'\')">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<b style="font-size:15px">'+esc((e.reasons||[]).join('、')||e.diag||'就诊记录')+'</b>'
+      +'<span style="font-size:13px;color:#8e8e93">'+esc(e.date)+'</span></div>'
+      +(e.hosp?'<div style="font-size:13px;color:#8e8e93;margin-top:6px">'+esc(e.hosp)+'</div>':'')
+      +(e.images&&e.images.length?'<div style="color:#007aff;font-size:12px;margin-top:6px">📎 '+e.images.length+' 张报告</div>':'')
       +'</div>';
   });
-  h+='</div></div>';
+  h+='</div>';
   m.innerHTML=h;
 }
 
-// ======== 全局搜索与档案页 ========
 function rRec(m){
-  let h='<div class="search-box"><input type="search" id="searchInput" placeholder="搜索症状、诊断、药品或医院…" value="'+esc(searchQuery)+'" oninput="onSearch(this.value)"></div>';
+  let h='<div class="search-box"><input type="search" id="searchInput" placeholder="搜索症状、诊断、药品…" value="'+esc(searchQuery)+'" oninput="onSearch(this.value)"></div>';
   h+='<div class="seg" style="margin-top:0">'
     +'<button class="'+(recTab===0?'on':'')+'" onclick="tabRec(0)">主档案</button>'
     +'<button class="'+(recTab===1?'on':'')+'" onclick="tabRec(1)">中药</button></div><div id="recBody"></div>';
   m.innerHTML=h; tabRec(recTab);
 }
-function onSearch(val) {
-  searchQuery = val.trim();
-  tabRec(recTab); // 重新渲染列表
-}
+function onSearch(val) { searchQuery = val.trim(); tabRec(recTab); }
 function tabRec(i){
   recTab=i;
   document.querySelectorAll('.seg button').forEach((b,j)=>b.classList.toggle('on',i===j));
   const body=$('recBody');
-  
   let list;
   if(i===0) {
     list=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date));
     if(searchQuery) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(e => {
-        const text = [(e.reasons||[]).join(' '), e.diag, e.exam, e.med, e.feel, e.dept, e.hosp, e.herbFormula].join(' ').toLowerCase();
-        return text.includes(q);
-      });
+      list = list.filter(e => [(e.reasons||[]).join(' '), e.diag, e.exam, e.med, e.feel, e.dept, e.hosp, e.herbFormula].join(' ').toLowerCase().includes(q));
     }
-    if(!list.length){
-      body.innerHTML='<div class="empty">'+(searchQuery?'没有找到匹配的记录':'还没有事件记录<br>点右下角 + 添加')+'</div>';
-      return;
-    }
+    if(!list.length){ body.innerHTML='<div class="empty">'+(searchQuery?'没有找到匹配的记录':'暂无事件记录')+'</div>'; return; }
     body.innerHTML='<div class="wrap">'+list.map(ev=>evCard(ev)).join('')+'</div>';
   } else {
     body.innerHTML=herbHtml();
@@ -496,70 +434,53 @@ function evCard(ev){
   return '<div class="card">'
     +'<div class="acts"><button onclick="editEv(\''+ev.id+'\')">编辑</button>'
     +'<button class="del" onclick="delEv(\''+ev.id+'\')">删除</button></div>'
-    +'<div class="date">'+esc(ev.date)+'</div>'
-    +'<div class="hosp">'+esc(ev.hosp||'')+(ev.dept?' · '+esc(ev.dept):'')+'</div>'
-    +'<h3>'+esc((ev.reasons||[]).join('、')||'（未填原因）')+'</h3>'
-    +(ev.diag?'<span class="tag g">'+esc(ev.diag)+'</span>':'')
-    +(ev.herb?'<span class="tag" style="background:#f3e8ff;color:#7c3aed">中药</span>':'')
+    +'<div style="font-size:15px;font-weight:600;margin-bottom:6px">'+esc((ev.reasons||[]).join('、')||'未填原因')+'</div>'
+    +'<div style="font-size:13px;color:#8e8e93;margin-bottom:10px">'+esc(ev.date)+' · '+esc(ev.hosp||'')+(ev.dept?' ('+esc(ev.dept)+')':'')+'</div>'
+    +(ev.diag?'<span class="tag blue">诊断: '+esc(ev.diag)+'</span>':'')
+    +(ev.herb?'<span class="tag purple">中药</span>':'')
     +(ev.exam?'<div class="row"><b>检查：</b>'+esc(ev.exam).replace(/\n/g,'<br>')+'</div>':'')
     +(ev.med?'<div class="row"><b>用药：</b>'+esc(ev.med).replace(/\n/g,'<br>')+'</div>':'')
     +(ev.herbFormula?'<div class="row"><b>方剂：</b>'+esc(ev.herbFormula).replace(/\n/g,'<br>')+'</div>':'')
     +(ev.feel?'<div class="row"><b>感受：</b>'+esc(ev.feel).replace(/\n/g,'<br>')+'</div>':'')
     +(ev.images&&ev.images.length?'<div class="card-img">'
-      +ev.images.map((src,i)=>'<img src="'+src+'" onclick="viewSaved(\''+ev.id+'\','+i+')">').join('')
+      +ev.images.map((src,i)=>'<img src="'+src+'" onclick="event.stopPropagation(); viewSaved(\''+ev.id+'\','+i+')">').join('')
       +'</div>':'')
-    +(ev.inferred ? '<details class="infer-box"><summary>本地反推：医生可能的方向</summary><div class="infer-content">'+esc(ev.inferred).replace(/\n/g,'<br>')+'</div></details>' : '')
+    +(ev.inferred ? '<details class="infer-box"><summary>AI 反推医生判断</summary><div class="infer-content">'+esc(ev.inferred).replace(/\n/g,'<br>')+'</div></details>' : '')
     +'</div>';
 }
 
 function herbHtml(){
   const list=db.events.filter(e=>e.herb).sort((a,b)=>a.date.localeCompare(b.date));
-  if(!list.length) return '<div class="empty">还没有中药记录<br>添加事件时勾选"含中药调理"</div>';
-  let h='';
-  const first=list[0].date, last=list[list.length-1].date;
-  h+='<div class="herb-summary">'
-    +'共 '+list.length+' 次中药相关记录<br>'
-    +'时间跨度：'+fmtDate(first)+' 至 '+fmtDate(last)+'（共 '+diffDays(first,last)+' 天）'
-    +'</div>';
-  h+='<div class="herb-timeline">';
+  if(!list.length) return '<div class="empty">暂无中药调理记录</div>';
+  let h='<div class="wrap"><div class="card" style="background:#f9f3ff;box-shadow:none;border:1px solid #e8daff">'
+    +'<span style="color:#8a2be2;font-weight:600">共 '+list.length+' 次调理记录</span><br>'
+    +'<span style="font-size:13px;color:#666">时间跨度：'+fmtDate(list[0].date)+' 至 '+fmtDate(list[list.length-1].date)+'</span>'
+    +'</div></div>';
+  h+='<div class="tl">';
   list.forEach((e,i)=>{
-    let interval='';
-    if(i>0){
-      const gap=diffDays(list[i-1].date, e.date);
-      interval='距上次 '+gap+' 天';
-    }
-    h+='<div class="herb-item">'
-      +'<div class="ht">'+fmtDate(e.date)+(interval?'（'+interval+'）':'')+'</div>'
-      +'<div class="hd">'
-      +(e.hosp?esc(e.hosp):'')
-      +(e.dept?' · '+esc(e.dept):'')
-      +((e.reasons||[]).length?'<br>原因：'+esc(e.reasons.join('、')):'')
-      +(e.diag?'<br>诊断：'+esc(e.diag):'')
-      +'</div>'
-      +(e.herbFormula?'<div class="hf"><b>方剂：</b>'+esc(e.herbFormula).replace(/\n/g,'<br>')+'</div>':'')
-      +(e.feel?'<div class="hd" style="margin-top:6px">感受：'+esc(e.feel)+'</div>':'')
-      +'<div class="hact">'
-      +'<button onclick="editEv(\''+e.id+'\')">编辑</button>'
-      +'<button class="del" onclick="delEv(\''+e.id+'\')">删除</button>'
-      +'</div>'
-      +'</div>';
+    let gap = i>0 ? diffDays(list[i-1].date, e.date) : 0;
+    h+='<div class="item">'
+      +'<div class="t">'+fmtDate(e.date)+'</div>'
+      +(i>0?'<div class="gap">距上次 '+gap+' 天</div>':'')
+      +'<div style="margin-top:8px;background:#fff;border-radius:12px;padding:12px;font-size:14px">'
+      +((e.reasons||[]).length?'<div style="margin-bottom:6px;color:#666">原因：'+esc(e.reasons.join('、'))+'</div>':'')
+      +(e.diag?'<div style="margin-bottom:6px;color:#666">诊断：'+esc(e.diag)+'</div>':'')
+      +(e.herbFormula?'<div style="color:#8a2be2;font-weight:600;background:#f9f3ff;padding:8px;border-radius:8px">方剂：'+esc(e.herbFormula)+'</div>':'')
+      +'<div style="text-align:right;margin-top:8px"><button style="background:none;border:none;color:#007aff;font-size:13px" onclick="editEv(\''+e.id+'\')">编辑</button></div>'
+      +'</div></div>';
   });
   h+='</div>';
   return h;
 }
 
-// ======== 身体模块（身高体重+营养分析） ========
 function rBody(m){
   const list = db.bodyRecords ? db.bodyRecords.slice().sort((a,b)=>b.date.localeCompare(a.date)) : [];
   const latest = list[0];
-  
   let h = '<div class="wrap">';
   
-  // 头部统计
   if(latest) {
     const bmi = (latest.weight / ((latest.height/100)**2)).toFixed(1);
-    let bmiLabel = '正常';
-    let color = '#fff';
+    let bmiLabel = '正常', color = '#fff';
     if(bmi < 18.5) { bmiLabel = '偏瘦'; color = '#ffeb3b'; }
     else if(bmi >= 24 && bmi < 28) { bmiLabel = '超重'; color = '#ffeb3b'; }
     else if(bmi >= 28) { bmiLabel = '肥胖'; color = '#ff5252'; }
@@ -571,67 +492,56 @@ function rBody(m){
       + '<div class="bmi">BMI: '+bmi+' ('+bmiLabel+')</div>'
       + '</div>';
   } else {
-    h += '<div class="empty" style="padding:30px">还没有身高体重记录<br>点右下角 + 记录一次</div>';
+    h += '<div class="hero-empty">暂无身高体重记录，点右下角 + 添加</div>';
   }
 
-  // 营养分析
-  h += '<div style="font-size:16px;font-weight:600;margin:16px 0 10px">💡 结合报告的饮食建议</div>';
-  
+  h += '<div style="font-size:16px;font-weight:600;margin:20px 0 10px">💡 结合报告的饮食建议</div>';
   let suggestions = [];
   if (latest) {
     const bmi = latest.weight / ((latest.height/100)**2);
     if (bmi < 18.5) suggestions.push({title: '体型偏瘦', desc: '建议增加优质蛋白和碳水摄入。', foods: ['鸡蛋','牛奶','牛肉','坚果']});
     if (bmi >= 24) suggestions.push({title: '体重超标', desc: '建议控制高热量饮食，多吃膳食纤维。', foods: ['燕麦','西兰花','鸡胸肉','苹果']});
   }
-
-  // 扫描历史检查结果
   let allExamText = db.events.map(e => (e.exam||'') + ' ' + (e.diag||'')).join(' ').toLowerCase();
-  if(allExamText.includes('贫血') || allExamText.includes('血红蛋白低') || allExamText.includes('红细胞低')) {
-    suggestions.push({title: '可能缺铁', desc: '历史记录提及贫血或血红蛋白偏低，建议补充铁元素。', foods: ['猪肝','红肉','菠菜','黑木耳']});
-  }
-  if(allExamText.includes('缺钙') || allExamText.includes('骨质疏松') || allExamText.includes('维生素d缺乏')) {
-    suggestions.push({title: '可能缺钙/维D', desc: '历史记录提及骨密度或维D问题，建议补钙并多晒太阳。', foods: ['牛奶','豆腐','虾皮','三文鱼']});
-  }
-  if(allExamText.includes('白细胞低') || allExamText.includes('免疫力低')) {
-    suggestions.push({title: '免疫力偏弱', desc: '白细胞偏低时需补充高蛋白和维生素。', foods: ['瘦肉','蘑菇','猕猴桃','橙子']});
-  }
-  if(allExamText.includes('甲状腺') || allExamText.includes('结节')) {
-    suggestions.push({title: '关注甲状腺', desc: '建议注意碘的摄入，避免盲目大量吃海带或完全无碘。', foods: ['海带(适量)','碘盐','蛋类']});
-  }
+  if(allExamText.includes('贫血') || allExamText.includes('血红蛋白低')) suggestions.push({title: '可能缺铁', desc: '历史报告提及贫血，建议补充铁元素。', foods: ['猪肝','红肉','菠菜','黑木耳']});
+  if(allExamText.includes('缺钙') || allExamText.includes('骨质疏松')) suggestions.push({title: '可能缺钙', desc: '建议补钙并多晒太阳。', foods: ['牛奶','豆腐','虾皮','三文鱼']});
+  if(allExamText.includes('白细胞低')) suggestions.push({title: '免疫力偏弱', desc: '需补充高蛋白和维生素。', foods: ['瘦肉','蘑菇','猕猴桃','橙子']});
 
   if(suggestions.length === 0) {
-    h += '<div class="nutri-card" style="border-left-color:#0a84ff"><h4>暂无特定缺乏提示</h4><p>历史检查报告中没有发现明确的营养缺乏字眼。建议保持饮食均衡，多吃蔬菜水果和优质蛋白。</p></div>';
+    h += '<div class="nutri-card" style="border-left-color:#007aff"><h4>暂无特定缺乏提示</h4><p>历史检查报告中没有发现明确的营养缺乏字眼。建议保持饮食均衡。</p></div>';
   } else {
     suggestions.forEach(s => {
-      h += '<div class="nutri-card">'
-        + '<h4>'+esc(s.title)+'</h4>'
-        + '<p>'+esc(s.desc)+'</p>'
-        + '<div>' + s.foods.map(f => '<span class="food-tag">'+esc(f)+'</span>').join('') + '</div>'
-        + '</div>';
+      h += '<div class="nutri-card"><h4>'+esc(s.title)+'</h4><p>'+esc(s.desc)+'</p>'
+        + '<div>' + s.foods.map(f => '<span class="food-tag">'+esc(f)+'</span>').join('') + '</div></div>';
     });
   }
 
-  // 历史记录列表
   if(list.length > 1) {
-    h += '<div style="font-size:16px;font-weight:600;margin:16px 0 10px">📉 历史记录</div>';
+    h += '<div style="font-size:16px;font-weight:600;margin:20px 0 10px">📉 历史记录</div>';
     h += '<div class="card" style="padding:0">';
     list.forEach((r, i) => {
       const bmi = (r.weight / ((r.height/100)**2)).toFixed(1);
-      h += '<div style="padding:12px;border-bottom:'+(i<list.length-1?'1px solid #f0f0f3':'none')+';display:flex;justify-content:space-between">'
-        + '<div>'+esc(r.date)+'</div>'
-        + '<div>'+r.weight+' kg (BMI '+bmi+')</div>'
-        + '</div>';
+      h += '<div style="padding:14px;border-bottom:'+(i<list.length-1?'1px solid #f5f5f7':'none')+';display:flex;justify-content:space-between;font-size:14px">'
+        + '<div style="color:#8e8e93">'+esc(r.date)+'</div>'
+        + '<div><b>'+r.weight+'</b> kg (BMI '+bmi+')</div></div>';
     });
     h += '</div>';
   }
-
   h += '</div>';
   m.innerHTML=h;
 }
 
-// ======== 日历/经期 ========
+// ======== 日历滑动逻辑 ========
+let touchStartX = 0;
+function handleTouchStart(e) { touchStartX = e.changedTouches[0].screenX; }
+function handleTouchEnd(e) {
+  let touchEndX = e.changedTouches[0].screenX;
+  if (touchEndX < touchStartX - 50) moveM(1); // 左滑，下个月
+  if (touchEndX > touchStartX + 50) moveM(-1); // 右滑，上个月
+}
+
 function rPer(m){
-  let h='<div class="seg" style="margin-top:12px">'
+  let h='<div class="seg" style="margin-top:8px">'
     +'<button class="on" onclick="tabPer(0)">日历</button>'
     +'<button onclick="tabPer(1)">时间轴</button>'
     +'<button onclick="tabPer(2)">列表</button></div><div id="perBody"></div>';
@@ -654,7 +564,10 @@ function calHtml(){
   const today=todayStr();
   let h='<div class="monthbar"><button onclick="moveM(-1)">‹</button><span>'
     +calY+' 年 '+(calM+1)+' 月</span><button onclick="moveM(1)">›</button></div>';
-  h+='<div class="cal">'+['日','一','二','三','四','五','六'].map(w=>'<div class="wd">'+w+'</div>').join('');
+  
+  // 绑定触摸事件到整个日历容器
+  h+='<div class="cal" ontouchstart="handleTouchStart(event)" ontouchend="handleTouchEnd(event)">';
+  h+=['日','一','二','三','四','五','六'].map(w=>'<div class="wd">'+w+'</div>').join('');
   for(let i=0;i<first;i++) h+='<div class="d blank"></div>';
   for(let d=1;d<=daysIn;d++){
     const ds=calY+'-'+String(calM+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
@@ -662,7 +575,7 @@ function calHtml(){
     h+='<div class="'+cls+'" onclick="toggleDay(\''+ds+'\')">'+d+'</div>';
   }
   h+='</div>';
-  h+='<div class="hint">点击某一天即可标记/取消经期。连续多天会自动合并为一次经期。</div>';
+  h+='<div style="text-align:center;font-size:13px;color:#8e8e93;padding:20px">点击打卡，连续多天自动合并<br>左右滑动可切换月份</div>';
   return h;
 }
 function moveM(n){calM+=n;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}tabPer(0);}
@@ -680,36 +593,31 @@ function toggleDay(ds){
   if(prev && next && prev!==next){
     prev.dates=[...new Set([...prev.dates,...next.dates,ds])].sort();
     db.periods=db.periods.filter(p=>p!==next);
-  } else if(prev){
-    prev.dates.push(ds); prev.dates.sort();
-  } else if(next){
-    next.dates.push(ds); next.dates.sort();
-  } else {
-    db.periods.push({id:uid(),dates:[ds],flow:'',pain:'',note:''});
-  }
+  } else if(prev){ prev.dates.push(ds); prev.dates.sort(); } 
+  else if(next){ next.dates.push(ds); next.dates.sort(); } 
+  else { db.periods.push({id:uid(),dates:[ds],flow:'',pain:'',note:''}); }
   saveDB(); render();
 }
 function tlHtml(){
   const list=sortedPeriods();
-  if(!list.length) return '<div class="empty">还没有经期记录<br>去"日历"点某一天开始记</div>';
+  if(!list.length) return '<div class="empty">暂无经期记录</div>';
   let h='<div class="tl">';
   list.forEach((p,i)=>{
     const s=perStart(p), e=perEnd(p);
     const dur=p.dates.length;
     const today=todayStr();
     const ongoing=e>=today;
-    let line2 = ongoing ? '<span style="color:#c2185b;font-weight:600">进行中 · 已持续 '+dur+' 天</span>' : '持续 '+dur+' 天';
+    let line2 = ongoing ? '<span style="color:#ff6b81;font-weight:600">进行中 · 已持续 '+dur+' 天</span>' : '持续 '+dur+' 天';
     let gapLine='';
     if(i>0){
-      const prevEnd=perEnd(list[i-1]);
-      const gap=diffDays(prevEnd,s);
+      const gap=diffDays(perEnd(list[i-1]),s);
       gapLine='<div class="gap">距上次结束 '+gap+' 天</div>';
     }
     h+='<div class="item">'
       +'<div class="t">'+fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'</div>'
       +'<div class="s">'+line2+'</div>'
       +gapLine
-      +(p.flow||p.pain||p.note?'<div class="s">'
+      +(p.flow||p.pain||p.note?'<div class="s" style="margin-top:6px;background:#fff;padding:8px;border-radius:8px">'
         +(p.flow?'量'+esc(p.flow)+'　':'')
         +(p.pain&&p.pain!=='无'?'痛经'+esc(p.pain)+'　':'')
         +(p.note?esc(p.note):'')+'</div>':'')
@@ -720,14 +628,14 @@ function tlHtml(){
 }
 function listHtml(){
   const list=sortedPeriods().slice().reverse();
-  if(!list.length) return '<div class="empty">还没有经期记录</div>';
+  if(!list.length) return '<div class="empty">暂无经期记录</div>';
   return '<div class="wrap">'+list.map(p=>{
     const s=perStart(p), e=perEnd(p);
     return '<div class="card">'
       +'<div class="acts"><button onclick="editPer(\''+p.id+'\')">编辑</button>'
       +'<button class="del" onclick="delPer(\''+p.id+'\')">删除</button></div>'
-      +'<div class="date">'+fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'</div>'
-      +'<div class="row">持续 '+p.dates.length+' 天</div>'
+      +'<div style="font-weight:600">'+fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'</div>'
+      +'<div class="row" style="color:#8e8e93">持续 '+p.dates.length+' 天</div>'
       +(p.flow?'<span class="tag">量'+esc(p.flow)+'</span>':'')
       +(p.pain?'<span class="tag">痛经'+esc(p.pain)+'</span>':'')
       +(p.note?'<div class="row">'+esc(p.note)+'</div>':'')
@@ -737,11 +645,9 @@ function listHtml(){
 
 function rAssistant(m){
   const unread=db.messages.filter(x=>!x.read).length;
-  let h='<div class="seg" style="margin-top:12px;flex-shrink:0">'
+  let h='<div class="seg" style="margin-top:8px;flex-shrink:0">'
     +'<button class="'+(assistantTab==='chat'?'on':'')+'" onclick="setATab(\'chat\')">对话</button>'
-    +'<button class="'+(assistantTab==='msg'?'on':'')+'" onclick="setATab(\'msg\')">消息'
-    +(unread?' <span class="msg-badge">'+unread+'</span>':'')
-    +'</button></div>';
+    +'<button class="'+(assistantTab==='msg'?'on':'')+'" onclick="setATab(\'msg\')">通知'+(unread?' ('+unread+')':'')+'</button></div>';
   h+='<div id="assistantBody" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>';
   m.innerHTML=h;
   if(assistantTab==='chat') renderChat();
@@ -753,24 +659,24 @@ function renderChat(){
   const body=$('assistantBody');
   let history='';
   if(!db.chats.length){
-    history='<div class="chat-hint">点下面的问题快速生成，或者在下方输入框自己问。<br><br>助手会翻你本地档案，整理成一段<b>脱敏</b>文字，你复制去问外面更强的 AI。<br><br>数据不会离开这台设备。</div>';
+    history='<div style="text-align:center;font-size:13px;color:#8e8e93;padding:40px 20px;line-height:1.8">点下方问题快速生成，或自己输入。<br>助手会翻你本地档案，整理成一段文字。<br>你复制去问外面更强的 AI。</div>';
   } else {
     db.chats.forEach(c=>{
       history+='<div class="bubble-t">'+esc(c.time)+'</div>';
       history+='<div class="bubble-u">'+esc(c.question)+'</div>';
       history+='<div class="bubble-b">'+esc(c.summary)
         +'<button class="copy-btn" onclick="copyById(\''+c.id+'\')">复制这段</button>'
-        +'<button class="copy-btn" style="background:#8e8e93;margin-left:8px" onclick="delChat(\''+c.id+'\')">删除</button>'
+        +'<button class="copy-btn" style="color:#ff3b30;margin-left:8px" onclick="delChat(\''+c.id+'\')">删除</button>'
         +'</div>';
     });
   }
   body.innerHTML='<div id="chatScroll">'+history+'</div>'
     +'<div id="chatBar">'
-    +'<div>'
-    +['我最近经期怎么样？','我以前胃不舒服过吗？','我吃过哪些药？','我吃过哪些中药？','我整体健康状况如何？'].map(q=>'<span class="qq" onclick="ask(\''+q+'\')">'+q+'</span>').join('')
+    +'<div style="white-space:nowrap;overflow-x:auto;margin-bottom:8px">'
+    +['最近经期怎么样？','以前胃痛过吗？','吃过哪些药？','有哪些中药？','整体健康状况'].map(q=>'<span class="qq" onclick="ask(\''+q+'\')">'+q+'</span>').join('')
     +'</div>'
     +'<div class="chat-input-row">'
-    +'<input id="chatInput" placeholder="输入你的问题…" onkeydown="if(event.key===\'Enter\')ask()">'
+    +'<input id="chatInput" placeholder="输入问题…" onkeydown="if(event.key===\'Enter\')ask()">'
     +'<button onclick="ask()">发送</button>'
     +'</div>'
     +'</div>';
@@ -788,136 +694,74 @@ function ask(preset){
 function copyById(id){ const c=db.chats.find(x=>x.id===id); if(c) copyText(c.summary); }
 function delChat(id){ if(!confirm('删除这条对话？'))return; db.chats=db.chats.filter(x=>x.id!==id); saveDB(); renderChat(); }
 
-const TOPIC_WORDS=['胃痛','胃镜','胃炎','胃','反酸','腹胀','消化','腹痛','头痛','头晕','失眠','睡眠','睡不着','疲劳','乏力','感冒','发烧','咳嗽','血压','血糖','血脂','心悸','胸闷','腰痛','关节','过敏','甲状腺','激素','体检','复查','痛经'];
-
 function buildSummary(question){
   const q=question;
   const wantPeriod=/经期|月经|例假|生理期|痛经/.test(q);
   const wantHerb=/中药|中医|汤药|方剂|方子/.test(q);
   const wantMed=/(吃过|吃了|用过|服用).*药/.test(q) && !wantHerb;
   const wantAll=/整体|全部|所有|综合|总体|概况|健康状况/.test(q);
-  const hitWords=TOPIC_WORDS.filter(w=>q.includes(w)).filter(w=>!['经期','月经','例假','生理期','痛经'].includes(w)||false);
+  const hitWords=['胃痛','胃镜','胃炎','胃','反酸','腹胀','消化','腹痛','头痛','头晕','失眠','睡眠','睡不着','疲劳','乏力','感冒','发烧','咳嗽','血压','血糖','血脂','心悸','胸闷','腰痛','关节','过敏','甲状腺','激素','体检','复查','痛经'].filter(w=>q.includes(w));
 
-  const lines=[];
-  let hasContent=false;
-
+  const lines=[]; let hasContent=false;
   if(wantPeriod){
     const ps=sortedPeriods();
     if(ps.length){
-      hasContent=true;
-      const recent=ps.slice(-10).reverse();
+      hasContent=true; const recent=ps.slice(-10).reverse();
       lines.push('【经期记录】共 '+ps.length+' 次，列出最近 '+recent.length+' 次：');
       recent.forEach((p,i)=>{
         const s=perStart(p), e=perEnd(p);
         let sLine='- '+s+(s!==e?' 至 '+e:'')+'，持续 '+p.dates.length+' 天';
-        if(p.flow) sLine+='，量'+p.flow;
-        if(p.pain) sLine+='，痛经'+p.pain;
-        if(p.note) sLine+='。'+p.note;
-        if(i<recent.length-1){
-          const prev=recent[i+1];
-          const gap=diffDays(perEnd(prev),s);
-          sLine+='（距上次结束 '+gap+' 天）';
-        }
+        if(p.flow) sLine+='，量'+p.flow; if(p.pain) sLine+='，痛经'+p.pain; if(p.note) sLine+='。'+p.note;
+        if(i<recent.length-1){ const prev=recent[i+1]; sLine+='（距上次结束 '+diffDays(perEnd(prev),s)+' 天）'; }
         lines.push(sLine);
       });
       if(ps.length>=3){
-        const gaps=[];
-        for(let i=1;i<ps.length;i++) gaps.push(diffDays(perEnd(ps[i-1]),perStart(ps[i])));
-        const avg=Math.round(gaps.reduce((a,b)=>a+b,0)/gaps.length);
-        const min=Math.min(...gaps), max=Math.max(...gaps);
-        lines.push('间隔统计：平均 '+avg+' 天，最短 '+min+' 天，最长 '+max+' 天。');
+        const gaps=[]; for(let i=1;i<ps.length;i++) gaps.push(diffDays(perEnd(ps[i-1]),perStart(ps[i])));
+        lines.push('间隔统计：平均 '+Math.round(gaps.reduce((a,b)=>a+b,0)/gaps.length)+' 天。');
       }
       lines.push('');
     }
   }
-
   if(wantHerb){
     const herbs=db.events.filter(e=>e.herb).sort((a,b)=>a.date.localeCompare(b.date));
-    if(herbs.length){
-      hasContent=true;
-      lines.push('【中药调理记录】共 '+herbs.length+' 次：');
+    if(herbs.length){ hasContent=true; lines.push('【中药调理记录】共 '+herbs.length+' 次：');
       herbs.forEach(e=>{
         let s='- '+e.date;
-        if((e.reasons||[]).length) s+='，因'+e.reasons.join('、');
-        if(e.diag) s+='，诊断：'+e.diag;
-        if(e.herbFormula) s+='，方剂：'+e.herbFormula.replace(/\n/g,'；');
-        if(e.med) s+='，西药：'+e.med.replace(/\n/g,'；');
-        if(e.feel) s+='，感受：'+e.feel;
+        if((e.reasons||[]).length) s+='，因'+e.reasons.join('、'); if(e.diag) s+='，诊断：'+e.diag;
+        if(e.herbFormula) s+='，方剂：'+e.herbFormula.replace(/\n/g,'；'); if(e.med) s+='，西药：'+e.med.replace(/\n/g,'；');
         lines.push(s);
-      });
-      lines.push('');
+      }); lines.push('');
     }
   }
-
   if(wantMed && !wantHerb){
     const meds=db.events.filter(e=>e.med && e.med.trim()).sort((a,b)=>a.date.localeCompare(b.date));
-    if(meds.length){
-      hasContent=true;
-      lines.push('【用药记录】共 '+meds.length+' 次：');
-      meds.forEach(e=>{
-        let s='- '+e.date;
-        if((e.reasons||[]).length) s+='，因'+e.reasons.join('、');
-        if(e.diag) s+='，诊断：'+e.diag;
-        s+='，用药：'+e.med.replace(/\n/g,'；');
-        lines.push(s);
-      });
-      lines.push('');
+    if(meds.length){ hasContent=true; lines.push('【用药记录】共 '+meds.length+' 次：');
+      meds.forEach(e=>{ lines.push('- '+e.date+(e.diag?'（'+e.diag+'）':'')+'：'+e.med.replace(/\n/g,'；')); }); lines.push('');
     }
   }
-
   if(hitWords.length){
-    const matched=db.events.filter(e=>{
-      const t=[(e.reasons||[]).join(' '),e.diag,e.exam,e.med,e.feel,e.dept,e.hosp,e.herbFormula||''].join(' ');
-      return hitWords.some(w=>t.includes(w));
-    });
-    if(matched.length){
-      hasContent=true;
-      const sorted=matched.slice().sort((a,b)=>a.date.localeCompare(b.date));
-      lines.push('【相关就诊记录】共 '+sorted.length+' 条：');
-      sorted.forEach(e=>{
-        let s='- '+e.date;
-        if((e.reasons||[]).length) s+='，因'+e.reasons.join('、');
-        if(e.hosp||e.dept) s+='，就诊某医院'+(e.dept?'（'+e.dept+'）':'');
-        if(e.exam) s+='。检查：'+e.exam.replace(/\n/g,'；');
-        if(e.diag) s+='。诊断：'+e.diag;
-        if(e.med) s+='。用药：'+e.med.replace(/\n/g,'；');
-        if(e.herbFormula) s+='。方剂：'+e.herbFormula.replace(/\n/g,'；');
-        if(e.feel) s+='。感受：'+e.feel;
-        if(e.inferred) s+='。（软件本地推测：'+e.inferred.replace(/\n/g,' ')+'）';
+    const matched=db.events.filter(e=>hitWords.some(w=>[(e.reasons||[]).join(' '),e.diag,e.exam,e.med,e.feel,e.dept,e.hosp,e.herbFormula||''].join(' ').includes(w)));
+    if(matched.length){ hasContent=true; lines.push('【相关就诊记录】共 '+matched.length+' 条：');
+      matched.sort((a,b)=>a.date.localeCompare(b.date)).forEach(e=>{
+        let s='- '+e.date+'：'+(e.diag||e.reasons.join('、'));
+        if(e.med) s+='，用药：'+e.med.replace(/\n/g,'；'); if(e.feel) s+='。'+e.feel;
         lines.push(s);
-      });
-      lines.push('');
+      }); lines.push('');
     }
   }
-
   if(wantAll || !hasContent){
     const recent=db.events.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15);
-    lines.push('【整体概况】');
-    lines.push('共 '+db.events.length+' 条就诊/体检记录，'+db.periods.length+' 次经期记录。');
+    lines.push('【整体概况】共 '+db.events.length+' 条记录，'+db.periods.length+' 次经期。');
     if(db.bodyRecords && db.bodyRecords.length > 0) {
        const b = db.bodyRecords.sort((a,b)=>b.date.localeCompare(a.date))[0];
        lines.push('最新身高 '+b.height+'cm，体重 '+b.weight+'kg。');
     }
     lines.push('');
-    if(recent.length){
-      lines.push('【最近 '+recent.length+' 条记录】');
-      recent.forEach(e=>{
-        let s='- '+e.date;
-        if((e.reasons||[]).length) s+='：'+e.reasons.join('、');
-        if(e.diag) s+='（诊断：'+e.diag+'）';
-        if(e.med) s+='（用药：'+e.med.replace(/\n/g,'；')+'）';
-        if(e.herbFormula) s+='（方剂：'+e.herbFormula.replace(/\n/g,'；')+'）';
-        lines.push(s);
-      });
-      lines.push('');
+    if(recent.length){ lines.push('【最近记录】');
+      recent.forEach(e=>{ lines.push('- '+e.date+'：'+((e.reasons||[]).join('、')||e.diag||'记录')+(e.med?'（用药:'+e.med+')':'')); }); lines.push('');
     }
-    if(db.periods.length){
-      const ps=sortedPeriods();
-      lines.push('【经期汇总】');
-      lines.push('共记录 '+ps.length+' 次。最近一次开始于 '+perStart(ps.slice(-1)[0])+'。');
-    }
+    if(db.periods.length){ lines.push('【经期汇总】共记录 '+db.periods.length+' 次。最近一次开始于 '+perStart(sortedPeriods().slice(-1)[0])+'。'); }
   }
-
   lines.push('请分析：'+question);
   return lines.join('\n');
 }
@@ -925,99 +769,75 @@ function buildSummary(question){
 function renderMessages(){
   const body=$('assistantBody');
   const list=db.messages.slice().sort((a,b)=>b.time.localeCompare(a.time));
-  let h='<div style="flex:1;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch">';
-  
-  h+='<div class="switch-row"><div><div class="lbl">主动提醒 & 系统通知</div>'
-    +'<div class="sub2">开启后会请求权限，有提醒时直接弹横幅</div></div>'
-    +'<label class="switch"><input type="checkbox" id="remindSwitch" '+(db.settings.remind?'checked':'')
-    +' onchange="toggleRemind(this.checked)"><span class="sl"></span></label></div>';
-    
+  let h='<div style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch">';
+  h+='<div class="card" style="padding:12px"><div style="display:flex;justify-content:space-between;align-items:center">'
+    +'<div><div style="font-weight:600">系统提醒</div><div style="font-size:12px;color:#8e8e93;margin-top:2px">开启后可弹窗</div></div>'
+    +'<label class="switch" style="margin:0"><input type="checkbox" id="remindSwitch" '+(db.settings.remind?'checked':'')+' onchange="toggleRemind(this.checked)"><span class="sl"></span></label>'
+    +'</div>';
   if(db.settings.remind) {
-    h+='<div class="switch-row"><div><div class="lbl">经期提醒间隔</div>'
-      +'<div class="sub2">超过多少天没有记录，自动提醒</div></div>'
-      +'<div style="display:flex;align-items:center;gap:6px">'
-      +'<input type="number" id="remindDaysInput" value="'+(db.settings.periodRemindDays||90)+'" onchange="updateRemindDays(this.value)" style="width:64px;text-align:center;padding:6px;margin:0">'
-      +'<span style="font-size:14px;color:#8e8e93">天</span>'
+    h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;border-top:1px solid #f0f0f3;padding-top:12px">'
+      +'<div style="font-size:14px">经期提醒间隔</div>'
+      +'<div style="display:flex;align-items:center;gap:6px;font-size:14px">'
+      +'<input type="number" id="remindDaysInput" value="'+(db.settings.periodRemindDays||90)+'" onchange="updateRemindDays(this.value)" style="width:50px;text-align:center;border:1px solid #e5e5ea;border-radius:6px;padding:4px"> 天'
       +'</div></div>';
   }
-  
+  h+='</div>';
   if(!list.length){
-    h+='<div class="empty" style="padding:30px 20px">还没有消息<br><span style="font-size:13px">录入记录后，如果和以前相关，会在这里提醒你</span></div>';
+    h+='<div class="empty" style="padding:20px">暂无消息</div>';
   } else {
     list.forEach(m=>{
-      h+='<div class="msg-card'+(m.read?'':' unread')+'">'
-        +'<div class="mt">'+esc(m.time)+'</div>'
-        +'<div class="mx">'+esc(m.text)+'</div>'
-        +'<div class="mact">'
-        +(m.type==='link'?'<button class="go" onclick="jumpTo(\''+m.refId+'\',\''+m.id+'\')">查看那次记录</button>':'')
-        +(m.type==='period'?'<button class="go" onclick="goCalendar(\''+m.id+'\')">去日历记录</button>':'')
-        +'<button class="del" onclick="delMsg(\''+m.id+'\')">删除</button>'
-        +'</div>'
-        +'</div>';
+      h+='<div class="card" style="'+(m.read?'':'border-left:3px solid #007aff')+'">'
+        +'<div style="font-size:12px;color:#8e8e93;margin-bottom:6px">'+esc(m.time)+'</div>'
+        +'<div style="font-size:14px;line-height:1.6">'+esc(m.text)+'</div>'
+        +'<div style="margin-top:10px;display:flex;gap:10px">'
+        +(m.type==='link'?'<button style="padding:6px 12px;background:#f5f5f7;border:none;border-radius:8px;color:#007aff" onclick="jumpTo(\''+m.refId+'\',\''+m.id+'\')">查看记录</button>':'')
+        +(m.type==='period'?'<button style="padding:6px 12px;background:#f5f5f7;border:none;border-radius:8px;color:#007aff" onclick="goCalendar(\''+m.id+'\')">去日历</button>':'')
+        +'<button style="padding:6px 12px;background:#f5f5f7;border:none;border-radius:8px;color:#8e8e93" onclick="delMsg(\''+m.id+'\')">删除</button>'
+        +'</div></div>';
     });
   }
   h+='</div>';
   body.innerHTML=h;
   if(db.messages.some(x=>!x.read)){
-    db.messages.forEach(x=>x.read=true);
-    saveDB();
-    setTimeout(()=>{const u=db.messages.filter(x=>!x.read).length;
-      $('navDot').classList.toggle('on',u>0);},100);
+    db.messages.forEach(x=>x.read=true); saveDB();
+    setTimeout(()=>{ if(db.messages.filter(x=>!x.read).length===0) $('navDot').classList.remove('on'); },100);
   }
 }
 async function toggleRemind(on){ 
-  if(on) {
-    const granted = await requestNotificationPermission();
-    if(!granted) {
-      toast('未开启通知权限，无法弹出系统横幅');
-      db.settings.remind = false;
-      saveDB(); renderMessages(); return;
-    }
-  }
-  db.settings.remind=on; saveDB(); toast(on?'已开启系统通知提醒':'已关闭提醒'); renderMessages();
+  if(on) { const granted = await requestNotificationPermission(); if(!granted) { toast('未开启通知权限'); db.settings.remind = false; saveDB(); renderMessages(); return; } }
+  db.settings.remind=on; saveDB(); toast(on?'已开启':'已关闭'); renderMessages();
 }
 function updateRemindDays(val) {
-  let n = parseInt(val);
-  if(isNaN(n) || n < 15) { toast('天数不能少于15天，已重置为90'); n = 90; }
-  db.settings.periodRemindDays = n; saveDB(); toast('经期提醒已设为 '+n+' 天'); renderMessages();
+  let n = parseInt(val); if(isNaN(n) || n < 15) { toast('不能少于15天，重置为90'); n = 90; }
+  db.settings.periodRemindDays = n; saveDB(); toast('间隔设为 '+n+' 天'); renderMessages();
 }
 function delMsg(id){ db.messages=db.messages.filter(x=>x.id!==id); saveDB(); renderMessages(); }
-function jumpTo(refId,msgId){
-  const ev=db.events.find(x=>x.id===refId);
-  if(!ev){toast('找不到这条记录');return;}
-  evForm(ev);
-}
-function goCalendar(msgId){
-  db.messages=db.messages.filter(x=>x.id!==msgId);
-  saveDB(); assistantTab='chat'; view='per'; render();
-}
+function jumpTo(refId,msgId){ const ev=db.events.find(x=>x.id===refId); if(!ev){toast('找不到记录');return;} evForm(ev); }
+function goCalendar(msgId){ db.messages=db.messages.filter(x=>x.id!==msgId); saveDB(); assistantTab='chat'; view='per'; render(); }
 
 function rSet(m){
   m.innerHTML='<div class="wrap">'
     +'<div class="card"><h3 style="margin-top:0">数据备份</h3>'
-    +'<div class="row" style="color:#8e8e93;font-size:13px">数据存在本地大容量数据库。换设备前，先导出备份。</div>'
-    +'<button class="btn" onclick="exp()">导出备份文件</button>'
-    +'<button class="btn sec" onclick="document.getElementById(\'imp\').click()">导入备份文件</button>'
+    +'<div class="row" style="color:#8e8e93;font-size:13px;margin-bottom:12px">换设备或清理缓存前，先导出备份文件。</div>'
+    +'<button class="btn" onclick="exp()">导出备份</button>'
+    +'<button class="btn sec" onclick="document.getElementById(\'imp\').click()">导入备份</button>'
     +'<input type="file" id="imp" accept=".json" style="display:none">'
     +'</div>'
     +'<div class="card"><h3 style="margin-top:0">测试通知</h3>'
-    +'<div class="row" style="color:#8e8e93;font-size:13px">如果开启了通知权限，点击下面按钮，手机会弹出系统横幅。</div>'
-    +'<button class="btn" onclick="testNotify()">发送测试通知</button>'
+    +'<button class="btn sec" onclick="testNotify()">发送测试通知</button>'
     +'</div>'
-    +'<div class="card"><h3 style="margin-top:0">危险操作</h3>'
-    +'<button class="btn sec" style="color:#ff3b30" onclick="clr()">清空全部数据</button>'
+    +'<div style="text-align:center;margin-top:40px;padding-bottom:20px">'
+    +'<span style="font-size:13px;color:#8e8e93;text-decoration:underline;cursor:pointer" onclick="clr()">清空全部数据</span>'
     +'</div></div>';
   $('imp').onchange=imp;
 }
 async function testNotify() {
   const ok = await requestNotificationPermission();
-  if(ok) { sendSystemNotification('📢 测试通知', '如果你看到了这条横幅，说明系统通知功能已生效！', 'test-1'); } 
-  else { toast('通知权限未开启'); }
+  if(ok) { sendSystemNotification('📢 测试通知', '看到这条横幅，说明系统通知已生效！', 'test-1'); } else { toast('未开启通知权限'); }
 }
 function exp(){
   const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(b);
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
   a.download='健康档案备份_'+todayStr()+'.json';a.click();
 }
 function imp(e){
@@ -1027,51 +847,48 @@ function imp(e){
     try{
       const o=JSON.parse(r.result);
       if(!o.events||!o.periods) throw 0;
-      if(confirm('导入 '+o.events.length+' 条事件、'+o.periods.length+' 次经期？\n确定=合并，取消=覆盖')){
-        const ids=new Set(db.events.map(x=>x.id));
-        o.events.forEach(x=>{if(!ids.has(x.id))db.events.push(x);});
-        const pids=new Set(db.periods.map(x=>x.id));
-        o.periods.forEach(x=>{if(!pids.has(x.id))db.periods.push(x);});
-        if(o.chats && o.chats.length){ const cids=new Set(db.chats.map(x=>x.id)); o.chats.forEach(x=>{if(!cids.has(x.id))db.chats.push(x);}); }
-        if(o.messages && o.messages.length){ const mids=new Set(db.messages.map(x=>x.id)); o.messages.forEach(x=>{if(!mids.has(x.id))db.messages.push(x);}); }
-        if(o.bodyRecords && o.bodyRecords.length){ const bids=new Set(db.bodyRecords.map(x=>x.id)); o.bodyRecords.forEach(x=>{if(!bids.has(x.id))db.bodyRecords.push(x);}); }
-      }else{db=o;if(!db.chats)db.chats=[];if(!db.messages)db.messages=[];if(!db.bodyRecords)db.bodyRecords=[];if(!db.settings)db.settings={remind:true};}
+      if(confirm('导入 '+o.events.length+' 条事件？\n确定=合并，取消=覆盖')){
+        const ids=new Set(db.events.map(x=>x.id)); o.events.forEach(x=>{if(!ids.has(x.id))db.events.push(x);});
+        const pids=new Set(db.periods.map(x=>x.id)); o.periods.forEach(x=>{if(!pids.has(x.id))db.periods.push(x);});
+        if(o.chats) { const c=new Set(db.chats.map(x=>x.id)); o.chats.forEach(x=>{if(!c.has(x.id))db.chats.push(x);}); }
+        if(o.messages) { const m=new Set(db.messages.map(x=>x.id)); o.messages.forEach(x=>{if(!m.has(x.id))db.messages.push(x);}); }
+        if(o.bodyRecords) { const b=new Set(db.bodyRecords.map(x=>x.id)); o.bodyRecords.forEach(x=>{if(!b.has(x.id))db.bodyRecords.push(x);}); }
+      } else { db=o; if(!db.chats)db.chats=[]; if(!db.messages)db.messages=[]; if(!db.bodyRecords)db.bodyRecords=[]; if(!db.settings)db.settings={remind:true}; }
       saveDB(); render(); alert('导入完成');
     }catch(err){alert('文件格式不对');}
   };
   r.readAsText(f);e.target.value='';
 }
 function clr(){
-  if(!confirm('确定清空全部数据？无法恢复。'))return;
-  if(!confirm('再确认一次：真的要清空？'))return;
-  db={events:[],periods:[],chats:[],messages:[],bodyRecords:[],settings:{remind:true, periodRemindDays:90}};saveDB();render();
+  const txt = prompt('【危险操作】这将删除所有数据，无法恢复！\n\n如果确定，请输入"确认清空"四个字：');
+  if(txt === '确认清空') {
+    db={events:[],periods:[],chats:[],messages:[],bodyRecords:[],settings:{remind:true, periodRemindDays:90}};
+    saveDB(); toast('已清空'); view='home'; render();
+  } else if (txt !== null) {
+    toast('输入错误，取消清空');
+  }
 }
 
 function openP(html){$('panel').innerHTML=html;$('mask').classList.add('on');$('panel').classList.add('on');}
 function closeP(){$('mask').classList.remove('on');$('panel').classList.remove('on');editing=null;editingImages=[];}
 $('mask').onclick=closeP;
-$('fab').onclick=()=>{ 
-  if(view==='body') bodyForm();
-  else evForm(); 
-};
+$('fab').onclick=()=>{ if(view==='body') bodyForm(); else evForm(); };
 
 function bodyForm(){
   editing=null;
   const last = db.bodyRecords && db.bodyRecords.length > 0 ? db.bodyRecords[db.bodyRecords.length-1] : {};
   openP('<h2>记录身高体重</h2>'
-    +'<div class="field"><label>日期 *</label><input type="date" id="b_date" value="'+todayStr()+'"></div>'
+    +'<div class="field"><label>日期</label><input type="date" id="b_date" value="'+todayStr()+'"></div>'
     +'<div class="grid2">'
-    +'<div class="field"><label>身高 (cm)</label><input type="number" id="b_height" value="'+(last.height||'')+'" placeholder="如：160"></div>'
-    +'<div class="field"><label>体重 (kg)</label><input type="number" id="b_weight" value="'+(last.weight||'')+'" placeholder="如：55.5" step="0.1"></div>'
+    +'<div class="field"><label>身高 (cm)</label><input type="number" id="b_height" value="'+(last.height||'')+'" placeholder="160"></div>'
+    +'<div class="field"><label>体重 (kg)</label><input type="number" id="b_weight" value="'+(last.weight||'')+'" placeholder="55.5" step="0.1"></div>'
     +'</div>'
     +'<button class="btn" onclick="saveBody()">保存</button>'
     +'<button class="btn sec" onclick="closeP()">取消</button>');
 }
 function saveBody(){
-  const d = $('b_date').value;
-  const h = parseFloat($('b_height').value);
-  const w = parseFloat($('b_weight').value);
-  if(!d || !h || !w) { alert('请完整填写日期、身高和体重'); return; }
+  const d = $('b_date').value, h = parseFloat($('b_height').value), w = parseFloat($('b_weight').value);
+  if(!d || !h || !w) { alert('请完整填写'); return; }
   db.bodyRecords.push({ id:uid(), date:d, height:h, weight:w });
   saveDB(); closeP(); render();
 }
@@ -1081,37 +898,34 @@ function evForm(ev){
   editingImages = ev && ev.images ? ev.images.slice() : [];
   const reasons=ev?ev.reasons||[]:[];
   const allReasons=['胃痛','经期不规律','常规体检','腹胀','反酸','头痛','失眠','疲劳','感冒','复查','其他'];
-  openP('<h2>'+(ev?'编辑事件':'记录一次事件')+'</h2>'
-    +'<div class="grid2">'
-    +'<div class="field"><label>日期 *</label><input type="date" id="f_date" value="'+esc(ev?ev.date:todayStr())+'"></div>'
-    +'<div class="field"><label>科室</label><input id="f_dept" value="'+esc(ev?ev.dept:'')+'" placeholder="如：消化内科"></div>'
+  openP('<h2>'+(ev?'编辑事件':'记录事件')+'</h2>'
+    +'<div class="grid2" style="margin-bottom:0">'
+    +'<div class="field"><label>日期</label><input type="date" id="f_date" value="'+esc(ev?ev.date:todayStr())+'"></div>'
+    +'<div class="field"><label>科室</label><input id="f_dept" value="'+esc(ev?ev.dept:'')+'" placeholder="消化内科"></div>'
     +'</div>'
-    +'<div class="field"><label>医院</label><input id="f_hosp" value="'+esc(ev?ev.hosp:'')+'" placeholder="如：某市第一人民医院"></div>'
-    +'<div class="field"><label>这次的原因 / 目的（可多选）</label><div id="chips">'
+    +'<div class="field"><label>医院</label><input id="f_hosp" value="'+esc(ev?ev.hosp:'')+'" placeholder="第一人民医院"></div>'
+    +'<div class="field"><label>原因/目的（多选）</label><div id="chips">'
     +allReasons.map(r=>'<span class="chip'+(reasons.includes(r)?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+r+'</span>').join('')
     +'</div></div>'
-    +'<div class="field"><label>补充原因（自由写）</label><input id="f_reason2" value="'+esc(ev?ev.reason2:'')+'" placeholder="不在上面选项里的，写这里"></div>'
-    +'<div class="field"><label>报告图片（拍照或相册）</label>'
-    +'<div id="imgPreviews" class="img-previews"></div>'
-    +'<input type="file" id="f_img" accept="image/*" multiple style="display:none" onchange="onPickImages(event)">'
-    +'<button type="button" class="btn sec" onclick="document.getElementById(\'f_img\').click()">+ 选择图片/拍照</button>'
-    +'</div>'
-    +'<div class="field"><label>检查项目与结果</label><textarea id="f_exam" rows="4">'+esc(ev?ev.exam:'')+'</textarea></div>'
-    +'<div class="field"><label>诊断</label><input id="f_diag" value="'+esc(ev?ev.diag:'')+'" placeholder="如：慢性胃炎"></div>'
+    +'<div class="field"><label>补充原因</label><input id="f_reason2" value="'+esc(ev?ev.reason2:'')+'" placeholder="不在上方选项里的"></div>'
+    +'<div class="field"><label>检查结果</label><textarea id="f_exam" rows="3">'+esc(ev?ev.exam:'')+'</textarea></div>'
+    +'<div class="field"><label>诊断</label><input id="f_diag" value="'+esc(ev?ev.diag:'')+'" placeholder="慢性胃炎"></div>'
     +'<div class="field"><label>用药（西药）</label><textarea id="f_med" rows="2">'+esc(ev?ev.med:'')+'</textarea></div>'
     +'<div class="field"><label>我的感受</label><textarea id="f_feel" rows="2">'+esc(ev?ev.feel:'')+'</textarea></div>'
-    +'<div class="field"><label><input type="checkbox" id="f_herb" '+(ev&&ev.herb?'checked':'')+' style="width:auto;margin-right:6px">含中药调理</label></div>'
-    +'<div class="field"><label>中药方剂（勾选中药时填）</label><textarea id="f_herbformula" rows="2" placeholder="如：柴胡桂枝汤加减，7剂">'+esc(ev?ev.herbFormula||'':'')+'</textarea></div>'
-    +'<button class="btn" onclick="saveEv()">保存</button>'
+    +'<div class="field" style="display:flex;align-items:center;justify-content:space-between"><label style="margin:0">含中药调理</label><input type="checkbox" id="f_herb" '+(ev&&ev.herb?'checked':'')+' style="width:20px;height:20px"></div>'
+    +'<div class="field"><label>中药方剂</label><textarea id="f_herbformula" rows="2" placeholder="柴胡桂枝汤加减...">'+esc(ev?ev.herbFormula||'':'')+'</textarea></div>'
+    +'<div class="field"><label>报告图片</label>'
+    +'<div id="imgPreviews" class="img-previews"></div>'
+    +'<input type="file" id="f_img" accept="image/*" multiple style="display:none" onchange="onPickImages(event)">'
+    +'<button type="button" class="btn sec" style="margin-top:10px;background:#f5f5f7" onclick="document.getElementById(\'f_img\').click()">+ 上传图片</button>'
+    +'</div>'
+    +'<button class="btn" onclick="saveEv()">保存记录</button>'
     +'<button class="btn sec" onclick="closeP()">取消</button>');
   renderImgPreviews();
 }
 function renderImgPreviews(){
-  const box=$('imgPreviews');
-  if(!box) return;
-  box.innerHTML=editingImages.map((src,i)=>
-    '<div class="img-thumb"><img src="'+src+'" onclick="viewIdx('+i+')">'
-    +'<button type="button" class="rm" onclick="rmImg('+i+')">×</button></div>').join('');
+  const box=$('imgPreviews'); if(!box) return;
+  box.innerHTML=editingImages.map((src,i)=>'<div class="img-thumb"><img src="'+src+'" onclick="viewIdx('+i+')"><button type="button" class="rm" onclick="rmImg('+i+')">×</button></div>').join('');
 }
 function rmImg(i){ editingImages.splice(i,1); renderImgPreviews(); }
 function viewIdx(i){ $('imgViewerImg').src=editingImages[i]; $('imgViewer').classList.add('on'); }
@@ -1126,12 +940,9 @@ function compressImage(file){
     reader.onload=(e)=>{
       const img=new Image();
       img.onload=()=>{
-        let w=img.width, h=img.height;
-        const max=1600;
-        if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
-        else if(h>max){ w=Math.round(w*max/h); h=max; }
-        const c=document.createElement('canvas');
-        c.width=w; c.height=h;
+        let w=img.width, h=img.height; const max=1600;
+        if(w>h && w>max){ h=Math.round(h*max/w); w=max; } else if(h>max){ w=Math.round(w*max/h); h=max; }
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
         c.getContext('2d').drawImage(img,0,0,w,h);
         resolve(c.toDataURL('image/jpeg',0.8));
       };
@@ -1141,86 +952,47 @@ function compressImage(file){
   });
 }
 async function onPickImages(e){
-  const files=[...e.target.files];
-  if(!files.length) return;
+  const files=[...e.target.files]; if(!files.length) return;
   toast('处理图片中…');
-  for(const f of files){
-    try{ const b64=await compressImage(f); editingImages.push(b64); }catch(err){}
-  }
+  for(const f of files){ try{ const b64=await compressImage(f); editingImages.push(b64); }catch(err){} }
   e.target.value=''; renderImgPreviews();
 }
 function saveEv(){
-  const date=$('f_date').value;
-  if(!date){alert('请选日期');return;}
+  const date=$('f_date').value; if(!date){alert('请选日期');return;}
   const reasons=[...document.querySelectorAll('#chips .chip.on')].map(c=>c.textContent);
-  const r2=$('f_reason2').value.trim();
-  if(r2) reasons.push(r2);
-  
-  const medVal = $('f_med').value.trim();
-  const herbVal = $('f_herbformula').value.trim();
+  const r2=$('f_reason2').value.trim(); if(r2) reasons.push(r2);
+  const medVal = $('f_med').value.trim(), herbVal = $('f_herbformula').value.trim();
   const inferred = inferDiagnosis(medVal, herbVal);
-
   const isNew=!editing;
-  const o={
-    id:editing||uid(),
-    date:date, dept:$('f_dept').value.trim(), hosp:$('f_hosp').value.trim(),
-    reasons:reasons, reason2:'', exam:$('f_exam').value.trim(),
-    diag:$('f_diag').value.trim(), med:medVal,
-    feel:$('f_feel').value.trim(), herb:$('f_herb').checked,
-    herbFormula:herbVal,
-    images:editingImages.slice(),
-    inferred: inferred
-  };
-  
-  if(editing) db.events=db.events.map(x=>x.id===editing?o:x);
-  else db.events.push(o);
-  
-  if(isNew) checkEventLinks(o);
-  saveDB();closeP();render();
+  const o={ id:editing||uid(), date:date, dept:$('f_dept').value.trim(), hosp:$('f_hosp').value.trim(), reasons:reasons, reason2:'', exam:$('f_exam').value.trim(), diag:$('f_diag').value.trim(), med:medVal, feel:$('f_feel').value.trim(), herb:$('f_herb').checked, herbFormula:herbVal, images:editingImages.slice(), inferred: inferred };
+  if(editing) db.events=db.events.map(x=>x.id===editing?o:x); else db.events.push(o);
+  if(isNew) checkEventLinks(o); saveDB();closeP();render();
 }
 function editEv(id){const ev=db.events.find(x=>x.id===id);if(ev)evForm(ev);}
-function delEv(id){
-  if(!confirm('删除这条记录？'))return;
-  db.events=db.events.filter(x=>x.id!==id);
-  saveDB();render();
-}
+function delEv(id){ if(!confirm('删除这条记录？'))return; db.events=db.events.filter(x=>x.id!==id); saveDB();render(); }
 
 function perForm(p){
   editing=p?p.id:null;
   const s=perStart(p), e=perEnd(p);
-  openP('<h2>编辑经期细节</h2>'
-    +'<div class="row" style="color:#8e8e93;font-size:14px;margin-bottom:14px">'
-    +fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'（共 '+p.dates.length+' 天）<br>'
-    +'如需修改日期，去日历点选。</div>'
-    +'<div class="field"><label>量</label><select id="p_flow">'
-    +['','少','中','多'].map(v=>'<option '+(p.flow===v?'selected':'')+'>'+v+'</option>').join('')
-    +'</select></div>'
-    +'<div class="field"><label>痛经</label><select id="p_pain">'
-    +['无','轻','中','重'].map(v=>'<option '+(p.pain===v?'selected':'')+'>'+v+'</option>').join('')
-    +'</select></div>'
-    +'<div class="field"><label>备注（颜色、血块、情绪等）</label><textarea id="p_note" rows="3">'+esc(p.note)+'</textarea></div>'
+  openP('<h2>经期细节</h2>'
+    +'<div style="text-align:center;color:#8e8e93;font-size:14px;margin-bottom:16px">'+fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'（共 '+p.dates.length+' 天）</div>'
+    +'<div class="field"><label>流量</label><select id="p_flow">'+['','少','中','多'].map(v=>'<option '+(p.flow===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div>'
+    +'<div class="field"><label>痛经</label><select id="p_pain">'+['无','轻','中','重'].map(v=>'<option '+(p.pain===v?'selected':'')+'>'+v+'</option>').join('')+'</select></div>'
+    +'<div class="field"><label>备注</label><textarea id="p_note" rows="2">'+esc(p.note)+'</textarea></div>'
     +'<button class="btn" onclick="savePer()">保存</button>'
     +'<button class="btn sec" onclick="closeP()">取消</button>');
 }
 function savePer(){
-  const p=db.periods.find(x=>x.id===editing);
-  if(!p){closeP();return;}
-  p.flow=$('p_flow').value;
-  p.pain=$('p_pain').value;
-  p.note=$('p_note').value.trim();
+  const p=db.periods.find(x=>x.id===editing); if(!p){closeP();return;}
+  p.flow=$('p_flow').value; p.pain=$('p_pain').value; p.note=$('p_note').value.trim();
   saveDB();closeP();render();
 }
 function editPer(id){const p=db.periods.find(x=>x.id===id);if(p)perForm(p);}
-function delPer(id){if(!confirm('删除这次经期记录？'))return;db.periods=db.periods.filter(x=>x.id!==id);saveDB();render();}
+function delPer(id){if(!confirm('删除这次经期？'))return;db.periods=db.periods.filter(x=>x.id!==id);saveDB();render();}
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render();});
 
-initDB().then(()=>{
-  checkPeriodRemind();
-  render();
-}).catch(err=>{
-  alert('数据库初始化失败，请刷新页面');
-});
+initDB().then(()=>{ checkPeriodRemind(); render(); }).catch(err=>{ alert('数据库初始化失败，请刷新'); });
 </script>
 </body>
 </html>
