@@ -162,7 +162,7 @@ font-size:13px;color:#4a1f75;line-height:1.6;white-space:pre-wrap}
 .herb-item .hact button.del{color:#ff3b30}
 .herb-summary{background:#f9f3ff;border-radius:12px;padding:14px;margin:12px;
 color:#4a1f75;font-size:13px;line-height:1.7}
-/* 图片与文件 */
+/* 图片 */
 .img-previews{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .img-thumb{position:relative;width:80px;height:80px;border-radius:8px;overflow:hidden;
 background:#f0f0f3;flex-shrink:0}
@@ -177,7 +177,6 @@ align-items:center;justify-content:center;padding:16px}
 #imgViewer img{max-width:100%;max-height:100%;object-fit:contain}
 #imgViewer .close{position:absolute;top:14px;right:14px;color:#fff;font-size:32px;
 background:rgba(0,0,0,.5);border:none;cursor:pointer;width:44px;height:44px;border-radius:50%}
-.ocr-tip{font-size:11px;color:#8e8e93;margin-top:6px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -201,31 +200,66 @@ background:rgba(0,0,0,.5);border:none;cursor:pointer;width:44px;height:44px;bord
 <div id="imgViewer"><button class="close" onclick="closeViewer()">×</button><img id="imgViewerImg" src=""></div>
 
 <script>
-const K='health_v1';
-let db=JSON.parse(localStorage.getItem(K)||'null')||{events:[],periods:[],chats:[],messages:[],settings:{remind:true}};
-if(!db.chats) db.chats=[];
-if(!db.messages) db.messages=[];
-if(!db.settings) db.settings={remind:true};
+// ======= 存储引擎 =======
+let db = {events:[],periods:[],chats:[],messages:[],settings:{remind:true}};
 
-if(db.periods && db.periods.length && db.periods[0].start !== undefined){
-  db.periods=db.periods.map(p=>{
-    const dates=[];
-    if(p.start){
-      let d=p.start;
-      const end=p.end||p.start;
-      while(d<=end){dates.push(d);d=addDays(d,1);}
-    }
-    return {id:p.id||uid(), dates:dates, flow:p.flow||'', pain:p.pain||'', note:p.note||''};
+function initDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('HealthDB', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('kv')) {
+        d.createObjectStore('kv');
+      }
+    };
+    req.onsuccess = e => {
+      const d = e.target.result;
+      const tx = d.transaction('kv', 'readonly');
+      const store = tx.objectStore('kv');
+      const getReq = store.get('health_v1');
+      getReq.onsuccess = () => {
+        if(getReq.result) {
+          db = getReq.result;
+        } else {
+          // 尝试从旧版 localStorage 迁移数据
+          const old = localStorage.getItem('health_v1');
+          if(old) {
+            try {
+              db = JSON.parse(old);
+              saveDB(); // 迁移到新存储
+              localStorage.removeItem('health_v1');
+            } catch(err){}
+          }
+        }
+        if(!db.events) db.events = [];
+        if(!db.periods) db.periods = [];
+        if(!db.chats) db.chats = [];
+        if(!db.messages) db.messages = [];
+        if(!db.settings) db.settings = {remind:true};
+        resolve();
+      };
+      getReq.onerror = () => reject(getReq.error);
+    };
+    req.onerror = () => reject(req.error);
   });
-  save();
+}
+
+function saveDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('HealthDB', 1);
+    req.onsuccess = e => {
+      const d = e.target.result;
+      const tx = d.transaction('kv', 'readwrite');
+      const store = tx.objectStore('kv');
+      store.put(db, 'health_v1');
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    };
+  });
 }
 
 const $=id=>document.getElementById(id);
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function save(){
-  try{ localStorage.setItem(K,JSON.stringify(db)); }
-  catch(e){ alert('存储空间已满。建议先导出备份，清理一些旧图。'); }
-}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function todayStr(){
   const d=new Date();
@@ -324,7 +358,7 @@ function checkPeriodRemind(){
     text:'距离上次经期结束已经 '+days+' 天，比平时的间隔长了一些。最近有来吗？有的话去日历点一下就好。',
     refId:last.id, read:false
   });
-  save();
+  saveDB();
 }
 
 let view='home', calY, calM, editing=null, assistantTab='chat', recTab=0;
@@ -505,7 +539,7 @@ function toggleDay(ds){
     const p=db.periods[foundIdx];
     p.dates=p.dates.filter(d=>d!==ds);
     if(!p.dates.length) db.periods.splice(foundIdx,1);
-    save(); render(); return;
+    saveDB(); render(); return;
   }
   const prev=db.periods.find(p=>p.dates.includes(addDays(ds,-1)));
   const next=db.periods.find(p=>p.dates.includes(addDays(ds,1)));
@@ -519,7 +553,7 @@ function toggleDay(ds){
   } else {
     db.periods.push({id:uid(),dates:[ds],flow:'',pain:'',note:''});
   }
-  save(); render();
+  saveDB(); render();
 }
 
 function tlHtml(){
@@ -618,14 +652,14 @@ function ask(preset){
   if(inp) inp.value='';
   const summary=buildSummary(q);
   db.chats.push({id:uid(),time:nowStr(),question:q,summary:summary});
-  save();
+  saveDB();
   renderChat();
 }
 function copyById(id){ const c=db.chats.find(x=>x.id===id); if(c) copyText(c.summary); }
 function delChat(id){
   if(!confirm('删除这条对话？'))return;
   db.chats=db.chats.filter(x=>x.id!==id);
-  save(); renderChat();
+  saveDB(); renderChat();
 }
 
 const TOPIC_WORDS=['胃痛','胃镜','胃炎','胃','反酸','腹胀','消化','腹痛','头痛','头晕','失眠','睡眠','睡不着','疲劳','乏力','感冒','发烧','咳嗽','血压','血糖','血脂','心悸','胸闷','腰痛','关节','过敏','甲状腺','激素','体检','复查','痛经'];
@@ -784,13 +818,13 @@ function renderMessages(){
   body.innerHTML=h;
   if(db.messages.some(x=>!x.read)){
     db.messages.forEach(x=>x.read=true);
-    save();
+    saveDB();
     setTimeout(()=>{const u=db.messages.filter(x=>!x.read).length;
       $('navDot').classList.toggle('on',u>0);},100);
   }
 }
-function toggleRemind(on){ db.settings.remind=on; save(); toast(on?'已开启主动提醒':'已关闭主动提醒'); }
-function delMsg(id){ db.messages=db.messages.filter(x=>x.id!==id); save(); renderMessages(); }
+function toggleRemind(on){ db.settings.remind=on; saveDB(); toast(on?'已开启主动提醒':'已关闭主动提醒'); }
+function delMsg(id){ db.messages=db.messages.filter(x=>x.id!==id); saveDB(); renderMessages(); }
 function jumpTo(refId,msgId){
   const ev=db.events.find(x=>x.id===refId);
   if(!ev){toast('找不到这条记录');return;}
@@ -798,7 +832,7 @@ function jumpTo(refId,msgId){
 }
 function goCalendar(msgId){
   db.messages=db.messages.filter(x=>x.id!==msgId);
-  save();
+  saveDB();
   assistantTab='chat';
   view='per';
   render();
@@ -807,22 +841,15 @@ function goCalendar(msgId){
 function rSet(m){
   m.innerHTML='<div class="wrap">'
     +'<div class="card"><h3 style="margin-top:0">数据备份</h3>'
-    +'<div class="row" style="color:#8e8e93;font-size:13px">数据只存在这台设备。换设备或清理缓存前，先导出备份。</div>'
+    +'<div class="row" style="color:#8e8e93;font-size:13px">数据存在本地大容量数据库。换设备前，先导出备份。</div>'
     +'<button class="btn" onclick="exp()">导出备份文件</button>'
     +'<button class="btn sec" onclick="document.getElementById(\'imp\').click()">导入备份文件</button>'
     +'<input type="file" id="imp" accept=".json" style="display:none">'
-    +'</div>'
-    +'<div class="card"><h3 style="margin-top:0">存储占用</h3>'
-    +'<div class="row" id="usageInfo" style="color:#8e8e93;font-size:13px">计算中…</div>'
     +'</div>'
     +'<div class="card"><h3 style="margin-top:0">危险操作</h3>'
     +'<button class="btn sec" style="color:#ff3b30" onclick="clr()">清空全部数据</button>'
     +'</div></div>';
   $('imp').onchange=imp;
-  const size=JSON.stringify(db).length;
-  const mb=(size/1024/1024).toFixed(2);
-  const imgCount=db.events.reduce((a,e)=>a+((e.images&&e.images.length)||0),0);
-  $('usageInfo').innerHTML='已用约 '+mb+' MB（浏览器上限约 5 MB）<br>共 '+imgCount+' 张图片';
 }
 function exp(){
   const b=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
@@ -851,7 +878,9 @@ function imp(e){
           o.messages.forEach(x=>{if(!mids.has(x.id))db.messages.push(x);});
         }
       }else{db=o;if(!db.chats)db.chats=[];if(!db.messages)db.messages=[];if(!db.settings)db.settings={remind:true};}
-      save();render();alert('导入完成');
+      saveDB();
+      render();
+      alert('导入完成');
     }catch(err){alert('文件格式不对');}
   };
   r.readAsText(f);e.target.value='';
@@ -859,7 +888,7 @@ function imp(e){
 function clr(){
   if(!confirm('确定清空全部数据？无法恢复。'))return;
   if(!confirm('再确认一次：真的要清空？'))return;
-  db={events:[],periods:[],chats:[],messages:[],settings:{remind:true}};save();render();
+  db={events:[],periods:[],chats:[],messages:[],settings:{remind:true}};saveDB();render();
 }
 
 function openP(html){$('panel').innerHTML=html;$('mask').classList.add('on');$('panel').classList.add('on');}
@@ -882,12 +911,10 @@ function evForm(ev){
     +allReasons.map(r=>'<span class="chip'+(reasons.includes(r)?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+r+'</span>').join('')
     +'</div></div>'
     +'<div class="field"><label>补充原因（自由写）</label><input id="f_reason2" value="'+esc(ev?ev.reason2:'')+'" placeholder="不在上面选项里的，写这里"></div>'
-    +'<div class="field"><label>报告图片/文件（推荐用扫描王处理后再传）</label>'
+    +'<div class="field"><label>报告图片（拍照或相册，无数量限制）</label>'
     +'<div id="imgPreviews" class="img-previews"></div>'
     +'<input type="file" id="f_img" accept="image/*" multiple style="display:none" onchange="onPickImages(event)">'
     +'<button type="button" class="btn sec" onclick="document.getElementById(\'f_img\').click()">+ 选择图片/拍照</button>'
-    +'<button type="button" class="btn sec" id="ocrBtn" onclick="runOCR()" style="display:none">提取图片文字</button>'
-    +'<div class="ocr-tip">提示：扫描王处理过的图识别率最高。识别结果会自动分行过滤填入下方。</div>'
     +'</div>'
     +'<div class="field"><label>检查项目与结果</label><textarea id="f_exam" rows="4">'+esc(ev?ev.exam:'')+'</textarea></div>'
     +'<div class="field"><label>诊断</label><input id="f_diag" value="'+esc(ev?ev.diag:'')+'" placeholder="如：慢性胃炎"></div>'
@@ -905,8 +932,6 @@ function renderImgPreviews(){
   box.innerHTML=editingImages.map((src,i)=>
     '<div class="img-thumb"><img src="'+src+'" onclick="viewIdx('+i+')">'
     +'<button type="button" class="rm" onclick="rmImg('+i+')">×</button></div>').join('');
-  const btn=$('ocrBtn');
-  if(btn) btn.style.display=editingImages.length?'block':'none';
 }
 function rmImg(i){
   editingImages.splice(i,1);
@@ -927,6 +952,7 @@ function closeViewer(){
   $('imgViewer').classList.remove('on');
 }
 
+// 图片转为 Base64，无数量限制（仅受手机存储空间限制）
 function compressImage(file){
   return new Promise((resolve)=>{
     const reader=new FileReader();
@@ -934,13 +960,13 @@ function compressImage(file){
       const img=new Image();
       img.onload=()=>{
         let w=img.width, h=img.height;
-        const max=1000;
+        const max=1600; // 提高了清晰度上限
         if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
         else if(h>max){ w=Math.round(w*max/h); h=max; }
         const c=document.createElement('canvas');
         c.width=w; c.height=h;
         c.getContext('2d').drawImage(img,0,0,w,h);
-        resolve(c.toDataURL('image/jpeg',0.7));
+        resolve(c.toDataURL('image/jpeg',0.8)); // 画质略微调高
       };
       img.src=e.target.result;
     };
@@ -960,50 +986,7 @@ async function onPickImages(e){
   e.target.value='';
   renderImgPreviews();
 }
-function loadScript(src){
-  return new Promise((resolve,reject)=>{
-    const s=document.createElement('script');
-    s.src=src; s.onload=resolve; s.onerror=reject;
-    document.head.appendChild(s);
-  });
-}
-async function runOCR(){
-  if(!editingImages.length) return;
-  const btn=$('ocrBtn');
-  const old=btn.textContent;
-  btn.disabled=true;
-  btn.textContent='正在加载识别引擎…';
-  try{
-    if(!window.Tesseract){
-      await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
-    }
-    btn.textContent='识别中…请稍等';
-    const worker=await Tesseract.createWorker('chi_sim+eng');
-    let all='';
-    for(const src of editingImages){
-      const { data: { text } }=await worker.recognize(src);
-      all+=text+'\n';
-    }
-    await worker.terminate();
-    
-    // 优化：智能分行过滤
-    let lines = all.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
-    let filtered = lines.filter(l => /[0-9]/.test(l) || /[a-zA-Z]/.test(l) || /[阴阳性\+\-]/.test(l));
-    if(filtered.length === 0) filtered = lines; // 如果过滤完啥都没了，就保留原文
-    
-    const box=$('f_exam');
-    if(box){
-      box.value=(box.value?box.value+'\n':'')+filtered.join('\n');
-    }
-    
-    btn.textContent='提取完成，已填入';
-    btn.disabled=false;
-    setTimeout(()=>{btn.textContent=old;},2000);
-  }catch(err){
-    btn.textContent='失败，重试';
-    btn.disabled=false;
-  }
-}
+
 function saveEv(){
   const date=$('f_date').value;
   if(!date){alert('请选日期');return;}
@@ -1023,13 +1006,13 @@ function saveEv(){
   if(editing) db.events=db.events.map(x=>x.id===editing?o:x);
   else db.events.push(o);
   if(isNew) checkEventLinks(o);
-  save();closeP();render();
+  saveDB();closeP();render();
 }
 function editEv(id){const ev=db.events.find(x=>x.id===id);if(ev)evForm(ev);}
 function delEv(id){
   if(!confirm('删除这条记录？'))return;
   db.events=db.events.filter(x=>x.id!==id);
-  save();render();
+  saveDB();render();
 }
 
 function perForm(p){
@@ -1055,15 +1038,20 @@ function savePer(){
   p.flow=$('p_flow').value;
   p.pain=$('p_pain').value;
   p.note=$('p_note').value.trim();
-  save();closeP();render();
+  saveDB();closeP();render();
 }
 function editPer(id){const p=db.periods.find(x=>x.id===id);if(p)perForm(p);}
-function delPer(id){if(!confirm('删除这次经期记录？'))return;db.periods=db.periods.filter(x=>x.id!==id);save();render();}
+function delPer(id){if(!confirm('删除这次经期记录？'))return;db.periods=db.periods.filter(x=>x.id!==id);saveDB();render();}
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render();});
 
-checkPeriodRemind();
-render();
+// 启动应用
+initDB().then(()=>{
+  checkPeriodRemind();
+  render();
+}).catch(err=>{
+  alert('数据库初始化失败，请刷新页面');
+});
 </script>
 </body>
 </html>
