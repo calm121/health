@@ -127,6 +127,12 @@ textarea{resize:vertical}
 #fab{position:fixed;right:20px;bottom:calc(80px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;background:#ff6b81;color:#fff;font-size:32px;border:none;box-shadow:0 4px 14px rgba(255,107,129,.4);line-height:1;z-index:20;cursor:pointer;display:flex;align-items:center;justify-content:center;padding-bottom:4px}
 #fab:active{transform:scale(.95)}
 
+/* 滑动删除 */
+.swipe-row{position:relative;overflow:hidden;border-bottom:1px solid #f5f5f7}
+.swipe-row:last-child{border-bottom:none}
+.swipe-content{position:relative;z-index:2;background:#fff;padding:14px;display:flex;justify-content:space-between;align-items:center;font-size:14px;transition:transform 0.2s;touch-action:pan-y}
+.swipe-action{position:absolute;right:0;top:0;bottom:0;width:80px;background:#ff3b30;color:#fff;display:flex;align-items:center;justify-content:center;z-index:1;font-weight:600;cursor:pointer}
+
 /* 图片 */
 .img-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .img-thumb{position:relative;width:80px;height:80px;border-radius:10px;overflow:hidden;background:#e3e3e8;flex-shrink:0}
@@ -207,6 +213,19 @@ function initDB(){
         if(!db.bodyRecords) db.bodyRecords = [];
         if(!db.settings) db.settings = {remind:true};
         if(db.settings.periodRemindDays === undefined) db.settings.periodRemindDays = 90;
+
+        // 修复之前可能因为双击产生的完全一样的重复记录
+        const uniqueRecords = [];
+        const seen = new Set();
+        db.bodyRecords.forEach(r => {
+          const key = r.date + r.height + r.weight;
+          if(!seen.has(key)) {
+            seen.add(key);
+            uniqueRecords.push(r);
+          }
+        });
+        db.bodyRecords = uniqueRecords;
+
         resolve();
       };
       getReq.onerror = () => reject(getReq.error);
@@ -473,8 +492,10 @@ function herbHtml(){
   return h;
 }
 
+// ======== 身体模块（左滑删除 & 防重复） ========
+let touchStartX = 0, touchEndX = 0;
+
 function rBody(m){
-  // 修复：按日期降序，同一天按 ID (时间戳) 降序，保证最新录入的排第一
   const list = db.bodyRecords ? db.bodyRecords.slice().sort((a,b) => {
     if (a.date !== b.date) return b.date.localeCompare(a.date);
     return b.id.localeCompare(a.id);
@@ -521,17 +542,18 @@ function rBody(m){
     });
   }
 
-  if(list.length > 1) {
-    h += '<div style="font-size:16px;font-weight:600;margin:20px 0 10px">📉 历史记录</div>';
+  if(list.length > 0) {
+    h += '<div style="font-size:16px;font-weight:600;margin:20px 0 10px">📉 历史记录 <span style="font-size:12px;color:#8e8e93;font-weight:400">(左滑可删除)</span></div>';
     h += '<div class="card" style="padding:0">';
     list.forEach((r, i) => {
       const bmi = (r.weight / ((r.height/100)**2)).toFixed(1);
-      h += '<div style="padding:14px;border-bottom:'+(i<list.length-1?'1px solid #f5f5f7':'none')+';display:flex;justify-content:space-between;align-items:center;font-size:14px">'
-        + '<div style="color:#8e8e93">'+esc(r.date)+'</div>'
-        + '<div style="display:flex;align-items:center;gap:12px">'
+      h += '<div class="swipe-row">'
+        + '<div class="swipe-content" '
+        +      'ontouchstart="swipeStart(event)" ontouchmove="swipeMove(event, \''+r.id+'\')" ontouchend="swipeEnd(event, \''+r.id+'\')">'
+        +   '<div style="color:#8e8e93">'+esc(r.date)+'</div>'
         +   '<div><b>'+r.weight+'</b> kg (BMI '+bmi+')</div>'
-        +   '<button onclick="delBody(\''+r.id+'\')" style="background:none;border:none;color:#ff3b30;font-size:13px;cursor:pointer;padding:0">删除</button>'
         + '</div>'
+        + '<div class="swipe-action" onclick="delBody(\''+r.id+'\')">删除</div>'
         + '</div>';
     });
     h += '</div>';
@@ -540,12 +562,54 @@ function rBody(m){
   m.innerHTML=h;
 }
 
-let touchStartX = 0;
-function handleTouchStart(e) { touchStartX = e.changedTouches[0].screenX; }
+function swipeStart(e) {
+  touchStartX = e.touches[0].clientX;
+  touchEndX = touchStartX;
+  // 关掉其他滑开的项
+  document.querySelectorAll('.swipe-content').forEach(el => {
+    if(el !== e.currentTarget && el.style.transform === 'translateX(-80px)') {
+      el.style.transition = 'transform 0.2s';
+      el.style.transform = 'translateX(0)';
+    }
+  });
+  e.currentTarget.style.transition = 'none';
+}
+
+function swipeMove(e, id) {
+  touchEndX = e.touches[0].clientX;
+  let diff = touchEndX - touchStartX;
+  const el = e.currentTarget;
+  if(diff < 0 && diff > -80) {
+    el.style.transform = `translateX(${diff}px)`;
+  } else if (diff <= -80) {
+    el.style.transform = `translateX(-80px)`;
+  }
+}
+
+function swipeEnd(e, id) {
+  const el = e.currentTarget;
+  el.style.transition = 'transform 0.2s';
+  let diff = touchEndX - touchStartX;
+  if(diff < -40) {
+    el.style.transform = `translateX(-80px)`;
+  } else {
+    el.style.transform = `translateX(0)`;
+  }
+}
+
+function delBody(id) {
+  if(!confirm('确定删除这条身高体重记录吗？')) return;
+  db.bodyRecords = db.bodyRecords.filter(x => x.id !== id);
+  saveDB();
+  render();
+}
+
+let calTouchStartX = 0;
+function handleTouchStart(e) { calTouchStartX = e.changedTouches[0].screenX; }
 function handleTouchEnd(e) {
   let touchEndX = e.changedTouches[0].screenX;
-  if (touchEndX < touchStartX - 50) moveM(1);
-  if (touchEndX > touchStartX + 50) moveM(-1);
+  if (touchEndX < calTouchStartX - 50) moveM(1);
+  if (touchEndX > calTouchStartX + 50) moveM(-1);
 }
 
 function rPer(m){
@@ -896,15 +960,17 @@ function bodyForm(){
 function saveBody(){
   const d = $('b_date').value, h = parseFloat($('b_height').value), w = parseFloat($('b_weight').value);
   if(!d || !h || !w) { alert('请完整填写'); return; }
+  
+  // 防止连点或重复保存
+  const exist = db.bodyRecords.find(x => x.date === d && x.height === h && x.weight === w);
+  if(exist) {
+    toast('该记录已存在');
+    closeP();
+    return;
+  }
+  
   db.bodyRecords.push({ id:uid(), date:d, height:h, weight:w });
   saveDB(); closeP(); render();
-}
-
-function delBody(id) {
-  if(!confirm('确定删除这条身高体重记录吗？')) return;
-  db.bodyRecords = db.bodyRecords.filter(x => x.id !== id);
-  saveDB();
-  render();
 }
 
 function evForm(ev){
