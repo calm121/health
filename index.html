@@ -177,6 +177,13 @@ align-items:center;justify-content:center;padding:16px}
 #imgViewer img{max-width:100%;max-height:100%;object-fit:contain}
 #imgViewer .close{position:absolute;top:14px;right:14px;color:#fff;font-size:32px;
 background:rgba(0,0,0,.5);border:none;cursor:pointer;width:44px;height:44px;border-radius:50%}
+
+/* 折叠反推 */
+.infer-box{margin-top:8px;background:#fffbef;border:1px solid #ffebc2;border-radius:8px;padding:8px 10px}
+.infer-box summary{cursor:pointer;font-size:13px;font-weight:600;color:#c27c00;outline:none;display:flex;align-items:center;gap:4px}
+.infer-box summary::-webkit-details-marker{display:none}
+.infer-box summary::before{content:'💡';font-size:14px}
+.infer-content{font-size:13px;color:#6b4800;line-height:1.6;margin-top:6px;padding-top:6px;border-top:1px dashed #ffebc2}
 </style>
 </head>
 <body>
@@ -208,9 +215,7 @@ function initDB(){
     const req = indexedDB.open('HealthDB', 1);
     req.onupgradeneeded = e => {
       const d = e.target.result;
-      if(!d.objectStoreNames.contains('kv')) {
-        d.createObjectStore('kv');
-      }
+      if(!d.objectStoreNames.contains('kv')) d.createObjectStore('kv');
     };
     req.onsuccess = e => {
       const d = e.target.result;
@@ -218,17 +223,11 @@ function initDB(){
       const store = tx.objectStore('kv');
       const getReq = store.get('health_v1');
       getReq.onsuccess = () => {
-        if(getReq.result) {
-          db = getReq.result;
-        } else {
-          // 尝试从旧版 localStorage 迁移数据
+        if(getReq.result) db = getReq.result;
+        else {
           const old = localStorage.getItem('health_v1');
           if(old) {
-            try {
-              db = JSON.parse(old);
-              saveDB(); // 迁移到新存储
-              localStorage.removeItem('health_v1');
-            } catch(err){}
+            try { db = JSON.parse(old); saveDB(); localStorage.removeItem('health_v1'); } catch(err){}
           }
         }
         if(!db.events) db.events = [];
@@ -310,6 +309,42 @@ function fallbackCopy(text,done){
   document.body.removeChild(ta);
 }
 
+// ======= 本地反推逻辑 =======
+function inferDiagnosis(medText, herbText) {
+  let text = (medText || '') + ' ' + (herbText || '');
+  text = text.toLowerCase();
+  if(!text.trim()) return '';
+  
+  let results = [];
+  const rules = [
+    { keys:['奥美拉唑','阿莫西林','克拉霉素','甲硝唑','枸橼酸铋钾','果胶铋','雷贝拉唑','泮托拉唑'], desc:'常用于根除幽门螺杆菌（三联/四联疗法），或治疗胃炎、胃溃疡。' },
+    { keys:['黄体酮','地屈孕酮','达英','优思明','达英-35','益母草','乌鸡白凤','芬吗通'], desc:'常用于调节内分泌、调理月经周期或缓解痛经。' },
+    { keys:['布洛芬','对乙酰氨基酚','芬必得','双氯芬酸'], desc:'常见解热镇痛药，用于退烧、缓解头痛或痛经。' },
+    { keys:['头孢','阿奇霉素','左氧氟沙星','青霉素','红霉素'], desc:'抗生素类药物，常用于治疗细菌感染（如呼吸道、泌尿系统感染）。' },
+    { keys:['氯雷他定','西替利嗪','扑尔敏','依巴斯汀'], desc:'抗组胺药，通常用于缓解过敏性鼻炎、荨麻疹等过敏症状。' },
+    { keys:['氨氯地平','硝苯地平','缬沙坦','美托洛尔','替米沙坦','厄贝沙坦'], desc:'心血管类药物，主要用于降血压或控制心率。' },
+    { keys:['阿托伐他汀','瑞舒伐他汀','辛伐他汀'], desc:'降脂药，用于降低胆固醇和血脂。' },
+    { keys:['艾司唑仑','阿普唑仑','劳拉西泮','褪黑素','佐匹克隆'], desc:'镇静催眠或抗焦虑药物，用于改善睡眠。' },
+    { keys:['二甲双胍','阿卡波糖','格列美脲','达格列净'], desc:'降糖药物，用于控制血糖，常见于糖尿病治疗。' },
+    { keys:['柴胡','桂枝','当归','白芍','川芎','熟地黄','益母草','香附'], desc:'中药方剂中常见组合，常涉及疏肝解郁、活血化瘀或调理气血。' }
+  ];
+
+  rules.forEach(r => {
+    let found = r.keys.filter(k => text.includes(k));
+    if(found.length > 0) results.push(`发现「${found.join('、')}」：${r.desc}`);
+  });
+
+  if(results.length === 0) {
+    if(medText || herbText) {
+       return '用药组合暂未匹配到内置常见知识库。建议复制具体药名到外部AI进行更细致的药理分析。';
+    }
+    return '';
+  }
+
+  return results.join('\n') + '\n（本地推测仅供参考，请以医生诊断为准，建议复制给云端AI进一步验证）';
+}
+
+// 全局检查提醒逻辑
 const GENERIC_REASONS=['其他','常规体检','复查'];
 function checkEventLinks(newEvent){
   if(!db.settings.remind) return;
@@ -457,6 +492,7 @@ function evCard(ev){
     +(ev.images&&ev.images.length?'<div class="card-img">'
       +ev.images.map((src,i)=>'<img src="'+src+'" onclick="viewSaved(\''+ev.id+'\','+i+')">').join('')
       +'</div>':'')
+    +(ev.inferred ? '<details class="infer-box"><summary>本地反推：医生可能的方向</summary><div class="infer-content">'+esc(ev.inferred).replace(/\n/g,'<br>')+'</div></details>' : '')
     +'</div>';
 }
 function herbHtml(){
@@ -757,6 +793,7 @@ function buildSummary(question){
         if(e.med) s+='。用药：'+e.med.replace(/\n/g,'；');
         if(e.herbFormula) s+='。方剂：'+e.herbFormula.replace(/\n/g,'；');
         if(e.feel) s+='。感受：'+e.feel;
+        if(e.inferred) s+='。（软件本地推测：'+e.inferred.replace(/\n/g,' ')+'）';
         lines.push(s);
       });
       lines.push('');
@@ -878,9 +915,7 @@ function imp(e){
           o.messages.forEach(x=>{if(!mids.has(x.id))db.messages.push(x);});
         }
       }else{db=o;if(!db.chats)db.chats=[];if(!db.messages)db.messages=[];if(!db.settings)db.settings={remind:true};}
-      saveDB();
-      render();
-      alert('导入完成');
+      saveDB(); render(); alert('导入完成');
     }catch(err){alert('文件格式不对');}
   };
   r.readAsText(f);e.target.value='';
@@ -911,7 +946,7 @@ function evForm(ev){
     +allReasons.map(r=>'<span class="chip'+(reasons.includes(r)?' on':'')+'" onclick="this.classList.toggle(\'on\')">'+r+'</span>').join('')
     +'</div></div>'
     +'<div class="field"><label>补充原因（自由写）</label><input id="f_reason2" value="'+esc(ev?ev.reason2:'')+'" placeholder="不在上面选项里的，写这里"></div>'
-    +'<div class="field"><label>报告图片（拍照或相册，无数量限制）</label>'
+    +'<div class="field"><label>报告图片（拍照或相册）</label>'
     +'<div id="imgPreviews" class="img-previews"></div>'
     +'<input type="file" id="f_img" accept="image/*" multiple style="display:none" onchange="onPickImages(event)">'
     +'<button type="button" class="btn sec" onclick="document.getElementById(\'f_img\').click()">+ 选择图片/拍照</button>'
@@ -952,7 +987,6 @@ function closeViewer(){
   $('imgViewer').classList.remove('on');
 }
 
-// 图片转为 Base64，无数量限制（仅受手机存储空间限制）
 function compressImage(file){
   return new Promise((resolve)=>{
     const reader=new FileReader();
@@ -960,13 +994,13 @@ function compressImage(file){
       const img=new Image();
       img.onload=()=>{
         let w=img.width, h=img.height;
-        const max=1600; // 提高了清晰度上限
+        const max=1600;
         if(w>h && w>max){ h=Math.round(h*max/w); w=max; }
         else if(h>max){ w=Math.round(w*max/h); h=max; }
         const c=document.createElement('canvas');
         c.width=w; c.height=h;
         c.getContext('2d').drawImage(img,0,0,w,h);
-        resolve(c.toDataURL('image/jpeg',0.8)); // 画质略微调高
+        resolve(c.toDataURL('image/jpeg',0.8));
       };
       img.src=e.target.result;
     };
@@ -993,18 +1027,26 @@ function saveEv(){
   const reasons=[...document.querySelectorAll('#chips .chip.on')].map(c=>c.textContent);
   const r2=$('f_reason2').value.trim();
   if(r2) reasons.push(r2);
+  
+  const medVal = $('f_med').value.trim();
+  const herbVal = $('f_herbformula').value.trim();
+  const inferred = inferDiagnosis(medVal, herbVal);
+
   const isNew=!editing;
   const o={
     id:editing||uid(),
     date:date, dept:$('f_dept').value.trim(), hosp:$('f_hosp').value.trim(),
     reasons:reasons, reason2:'', exam:$('f_exam').value.trim(),
-    diag:$('f_diag').value.trim(), med:$('f_med').value.trim(),
+    diag:$('f_diag').value.trim(), med:medVal,
     feel:$('f_feel').value.trim(), herb:$('f_herb').checked,
-    herbFormula:$('f_herbformula').value.trim(),
-    images:editingImages.slice()
+    herbFormula:herbVal,
+    images:editingImages.slice(),
+    inferred: inferred
   };
+  
   if(editing) db.events=db.events.map(x=>x.id===editing?o:x);
   else db.events.push(o);
+  
   if(isNew) checkEventLinks(o);
   saveDB();closeP();render();
 }
@@ -1045,7 +1087,6 @@ function delPer(id){if(!confirm('删除这次经期记录？'))return;db.periods
 
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{view=b.dataset.v;render();});
 
-// 启动应用
 initDB().then(()=>{
   checkPeriodRemind();
   render();
