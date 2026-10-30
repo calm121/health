@@ -127,11 +127,14 @@ textarea{resize:vertical}
 #fab{position:fixed;right:20px;bottom:calc(80px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;background:#ff6b81;color:#fff;font-size:32px;border:none;box-shadow:0 4px 14px rgba(255,107,129,.4);line-height:1;z-index:20;cursor:pointer;display:flex;align-items:center;justify-content:center;padding-bottom:4px}
 #fab:active{transform:scale(.95)}
 
-/* 滑动删除 */
-.swipe-row{position:relative;overflow:hidden;border-bottom:1px solid #f5f5f7}
-.swipe-row:last-child{border-bottom:none}
-.swipe-content{position:relative;z-index:2;background:#fff;padding:14px;display:flex;justify-content:space-between;align-items:center;font-size:14px;transition:transform 0.2s;touch-action:pan-y}
-.swipe-action{position:absolute;right:0;top:0;bottom:0;width:80px;background:#ff3b30;color:#fff;display:flex;align-items:center;justify-content:center;z-index:1;font-weight:600;cursor:pointer}
+/* 左滑操作通用样式 */
+.swipe-row{position:relative;overflow:hidden;margin-bottom:12px;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.03)}
+.swipe-content{position:relative;z-index:2;background:#fff;padding:16px;transition:transform 0.2s;touch-action:pan-y}
+.swipe-actions{position:absolute;right:0;top:0;bottom:0;display:flex;z-index:1}
+.swipe-btn{width:70px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:500;cursor:pointer}
+.swipe-btn.edit{background:#007aff}
+.swipe-btn.del{background:#ff3b30}
+.swipe-btn.one{width:80px;background:#ff3b30}
 
 /* 图片 */
 .img-previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
@@ -492,8 +495,45 @@ function herbHtml(){
   return h;
 }
 
-// ======== 身体模块（左滑删除 & 防重复） ========
-let touchStartX = 0, touchEndX = 0;
+// ======== 通用左滑逻辑 ========
+let touchStartX = 0;
+let touchEndX = 0;
+
+function swipeStart(e) {
+  touchStartX = e.touches[0].clientX;
+  touchEndX = touchStartX;
+  document.querySelectorAll('.swipe-content').forEach(el => {
+    if(el !== e.currentTarget && el.style.transform !== '' && el.style.transform !== 'translateX(0px)') {
+      el.style.transition = 'transform 0.2s';
+      el.style.transform = 'translateX(0)';
+    }
+  });
+  e.currentTarget.style.transition = 'none';
+}
+
+function swipeMove(e, id) {
+  touchEndX = e.touches[0].clientX;
+  let diff = touchEndX - touchStartX;
+  let maxWidth = parseInt(e.currentTarget.dataset.width || 80);
+  const el = e.currentTarget;
+  if(diff < 0 && diff > -maxWidth) {
+    el.style.transform = `translateX(${diff}px)`;
+  } else if (diff <= -maxWidth) {
+    el.style.transform = `translateX(-${maxWidth}px)`;
+  }
+}
+
+function swipeEnd(e, id) {
+  const el = e.currentTarget;
+  el.style.transition = 'transform 0.2s';
+  let diff = touchEndX - touchStartX;
+  let maxWidth = parseInt(el.dataset.width || 80);
+  if(diff < -40) {
+    el.style.transform = `translateX(-${maxWidth}px)`;
+  } else {
+    el.style.transform = `translateX(0)`;
+  }
+}
 
 function rBody(m){
   const list = db.bodyRecords ? db.bodyRecords.slice().sort((a,b) => {
@@ -544,57 +584,26 @@ function rBody(m){
 
   if(list.length > 0) {
     h += '<div style="font-size:16px;font-weight:600;margin:20px 0 10px">📉 历史记录 <span style="font-size:12px;color:#8e8e93;font-weight:400">(左滑可删除)</span></div>';
-    h += '<div class="card" style="padding:0">';
+    h += '<div>';
     list.forEach((r, i) => {
       const bmi = (r.weight / ((r.height/100)**2)).toFixed(1);
       h += '<div class="swipe-row">'
-        + '<div class="swipe-content" '
-        +      'ontouchstart="swipeStart(event)" ontouchmove="swipeMove(event, \''+r.id+'\')" ontouchend="swipeEnd(event, \''+r.id+'\')">'
-        +   '<div style="color:#8e8e93">'+esc(r.date)+'</div>'
-        +   '<div><b>'+r.weight+'</b> kg (BMI '+bmi+')</div>'
+        + '<div class="swipe-content" data-width="80" '
+        +      'ontouchstart="swipeStart(event)" ontouchmove="swipeMove(event)" ontouchend="swipeEnd(event)">'
+        +   '<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px">'
+        +     '<div style="color:#8e8e93">'+esc(r.date)+'</div>'
+        +     '<div><b>'+r.weight+'</b> kg (BMI '+bmi+')</div>'
+        +   '</div>'
         + '</div>'
-        + '<div class="swipe-action" onclick="delBody(\''+r.id+'\')">删除</div>'
+        + '<div class="swipe-actions">'
+        +   '<div class="swipe-btn one" onclick="delBody(\''+r.id+'\')">删除</div>'
+        + '</div>'
         + '</div>';
     });
     h += '</div>';
   }
   h += '</div>';
   m.innerHTML=h;
-}
-
-function swipeStart(e) {
-  touchStartX = e.touches[0].clientX;
-  touchEndX = touchStartX;
-  // 关掉其他滑开的项
-  document.querySelectorAll('.swipe-content').forEach(el => {
-    if(el !== e.currentTarget && el.style.transform === 'translateX(-80px)') {
-      el.style.transition = 'transform 0.2s';
-      el.style.transform = 'translateX(0)';
-    }
-  });
-  e.currentTarget.style.transition = 'none';
-}
-
-function swipeMove(e, id) {
-  touchEndX = e.touches[0].clientX;
-  let diff = touchEndX - touchStartX;
-  const el = e.currentTarget;
-  if(diff < 0 && diff > -80) {
-    el.style.transform = `translateX(${diff}px)`;
-  } else if (diff <= -80) {
-    el.style.transform = `translateX(-80px)`;
-  }
-}
-
-function swipeEnd(e, id) {
-  const el = e.currentTarget;
-  el.style.transition = 'transform 0.2s';
-  let diff = touchEndX - touchStartX;
-  if(diff < -40) {
-    el.style.transform = `translateX(-80px)`;
-  } else {
-    el.style.transform = `translateX(0)`;
-  }
 }
 
 function delBody(id) {
@@ -702,15 +711,20 @@ function listHtml(){
   if(!list.length) return '<div class="empty">暂无经期记录</div>';
   return '<div class="wrap">'+list.map(p=>{
     const s=perStart(p), e=perEnd(p);
-    return '<div class="card">'
-      +'<div class="acts"><button onclick="editPer(\''+p.id+'\')">编辑</button>'
-      +'<button class="del" onclick="delPer(\''+p.id+'\')">删除</button></div>'
-      +'<div style="font-weight:600">'+fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'</div>'
-      +'<div class="row" style="color:#8e8e93">持续 '+p.dates.length+' 天</div>'
-      +(p.flow?'<span class="tag">量'+esc(p.flow)+'</span>':'')
-      +(p.pain?'<span class="tag">痛经'+esc(p.pain)+'</span>':'')
-      +(p.note?'<div class="row">'+esc(p.note)+'</div>':'')
-      +'</div>';
+    return '<div class="swipe-row">'
+      + '<div class="swipe-content" data-width="140" '
+      +      'ontouchstart="swipeStart(event)" ontouchmove="swipeMove(event)" ontouchend="swipeEnd(event)">'
+      +   '<div style="font-weight:600;font-size:15px;margin-bottom:6px">'+fmtDate(s)+(s!==e?' → '+fmtDate(e):'')+'</div>'
+      +   '<div class="row" style="color:#8e8e93; margin:0">持续 '+p.dates.length+' 天</div>'
+      +   (p.flow?'<span class="tag">量'+esc(p.flow)+'</span>':'')
+      +   (p.pain?'<span class="tag">痛经'+esc(p.pain)+'</span>':'')
+      +   (p.note?'<div class="row">'+esc(p.note)+'</div>':'')
+      + '</div>'
+      + '<div class="swipe-actions">'
+      +   '<div class="swipe-btn edit" onclick="editPer(\''+p.id+'\')">编辑</div>'
+      +   '<div class="swipe-btn del" onclick="delPer(\''+p.id+'\')">删除</div>'
+      + '</div>'
+      + '</div>';
   }).join('')+'</div>';
 }
 
